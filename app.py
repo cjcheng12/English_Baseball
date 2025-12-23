@@ -1,14 +1,16 @@
+
 import streamlit as st
 import random
 import json
 import time
+from gtts import gTTS
+import io
 
 # --- CONFIGURATION ---
 ROUNDS_PER_GAME = 20
 MASTERY_THRESHOLD = 5
 
 # --- THE VOCABULARY LIST ---
-# (Same list as before, just abbreviated for clarity here, but the full list is included below)
 initial_word_data = [
     {"word": "Pitcher", "def": "投手"},
     {"word": "Catcher", "def": "捕手"},
@@ -114,8 +116,6 @@ initial_word_data = [
 
 # --- INITIALIZE SESSION STATE ---
 if 'vocab_data' not in st.session_state:
-    # Initialize with default data
-    # Add 'score' field to all
     for item in initial_word_data:
         item['score'] = 0
     st.session_state.vocab_data = initial_word_data
@@ -132,18 +132,29 @@ if 'options' not in st.session_state:
     st.session_state.options = []
 if 'feedback' not in st.session_state:
     st.session_state.feedback = ""
+if 'current_audio' not in st.session_state:
+    st.session_state.current_audio = None
 
 # --- FUNCTIONS ---
 
+def generate_audio(text):
+    """Generates audio bytes for the given text using gTTS."""
+    try:
+        tts = gTTS(text=text, lang='en')
+        fp = io.BytesIO()
+        tts.write_to_fp(fp)
+        fp.seek(0)
+        return fp
+    except Exception as e:
+        return None
+
 def start_new_game():
-    # Filter for non-mastered words
     candidates = [w for w in st.session_state.vocab_data if w['score'] < MASTERY_THRESHOLD]
     
     if len(candidates) == 0:
         st.session_state.game_active = "WON"
         return
 
-    # Select random words for this session
     num_rounds = min(ROUNDS_PER_GAME, len(candidates))
     st.session_state.session_words = random.sample(candidates, num_rounds)
     st.session_state.current_index = 0
@@ -156,6 +167,9 @@ def load_next_question():
     if st.session_state.current_index < len(st.session_state.session_words):
         target = st.session_state.session_words[st.session_state.current_index]
         st.session_state.current_question = target
+        
+        # Generate Audio for this word
+        st.session_state.current_audio = generate_audio(target['word'])
         
         # Generate options
         correct_def = target['def']
@@ -175,7 +189,6 @@ def check_answer(selected_option):
         st.session_state.game_score += 1
         st.session_state.feedback = f"✅ Correct! '{target['word']}' means '{correct_def}'"
         
-        # Update mastery in the main list
         for item in st.session_state.vocab_data:
             if item['word'] == target['word']:
                 item['score'] += 1
@@ -204,12 +217,10 @@ if uploaded_file is not None:
     except:
         st.sidebar.error("Error loading file.")
 
-# Calculate stats
 mastered_count = sum(1 for w in st.session_state.vocab_data if w['score'] >= MASTERY_THRESHOLD)
 total_count = len(st.session_state.vocab_data)
 st.sidebar.metric("Words Mastered", f"{mastered_count} / {total_count}")
 
-# Download button
 json_string = json.dumps(st.session_state.vocab_data, ensure_ascii=False, indent=4)
 st.sidebar.download_button(
     label="💾 Download Progress to Save",
@@ -240,24 +251,29 @@ else:
     st.progress(progress)
     st.caption(f"Question {st.session_state.current_index + 1} of {len(st.session_state.session_words)}")
     
-    # Display Score
     st.metric("Score", st.session_state.game_score)
 
-    # Display Question
-    st.markdown(f"### What is the Chinese definition for: **{st.session_state.current_question['word']}**?")
+    # Word and Audio Section
+    st.markdown(f"### Word: **{st.session_state.current_question['word']}**")
+    
+    # Audio Player
+    if st.session_state.current_audio:
+        st.audio(st.session_state.current_audio, format="audio/mp3")
+    else:
+        st.warning("Audio not available")
 
-    # Display Options
-    # We use a container to keep the buttons stable
+    st.write("What is the Chinese definition?")
+
+    # Buttons
     cols = st.columns(2)
     for i, opt in enumerate(st.session_state.options):
         if cols[i % 2].button(opt, use_container_width=True):
             check_answer(opt)
             st.rerun()
 
-    # Show feedback from previous question
     if st.session_state.feedback:
         if "Correct" in st.session_state.feedback:
             st.success(st.session_state.feedback)
         else:
             st.error(st.session_state.feedback)
-  
+    
