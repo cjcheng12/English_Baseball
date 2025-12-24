@@ -9,6 +9,7 @@ import io
 # --- CONFIGURATION ---
 ROUNDS_PER_GAME = 20
 MASTERY_THRESHOLD = 5
+COOLDOWN_SECONDS = 86400  # 24 Hours in seconds
 
 # --- THE VOCABULARY LIST ---
 initial_word_data = [
@@ -116,9 +117,16 @@ initial_word_data = [
 
 # --- INITIALIZE SESSION STATE ---
 if 'vocab_data' not in st.session_state:
+    # Initialize default data with 'score' and 'last_correct_time'
     for item in initial_word_data:
         item['score'] = 0
+        item['last_correct_time'] = None 
     st.session_state.vocab_data = initial_word_data
+else:
+    # Ensure old save files get the new field if missing
+    for item in st.session_state.vocab_data:
+        if 'last_correct_time' not in item:
+            item['last_correct_time'] = None
 
 if 'current_index' not in st.session_state:
     st.session_state.current_index = 0
@@ -187,16 +195,34 @@ def check_answer(selected_option):
     
     if selected_option == correct_def:
         st.session_state.game_score += 1
-        st.session_state.feedback = f"✅ Correct! '{target['word']}' means '{correct_def}'"
+        current_time = time.time()
         
+        # Find item in main list to update
         for item in st.session_state.vocab_data:
             if item['word'] == target['word']:
-                item['score'] += 1
+                last_time = item.get('last_correct_time')
+                
+                # Check if 24 hours (86400 seconds) have passed OR if it's the first time
+                if last_time is None or (current_time - last_time > COOLDOWN_SECONDS):
+                    item['score'] += 1
+                    item['last_correct_time'] = current_time
+                    st.session_state.feedback = f"✅ Correct! (+1 Mastery Point)"
+                else:
+                    # Calculate hours left until next point
+                    hours_left = int((COOLDOWN_SECONDS - (current_time - last_time)) / 3600)
+                    st.session_state.feedback = f"✅ Correct! (Good practice! Come back in {hours_left}h to gain a Mastery Point)"
+                
                 if item['score'] >= MASTERY_THRESHOLD:
                      st.session_state.feedback += f" (🌟 MASTERED!)"
                 break
     else:
-        st.session_state.feedback = f"❌ Wrong. '{target['word']}' means '{correct_def}'"
+        # Wrong Answer Logic
+        st.session_state.feedback = f"❌ Wrong. '{target['word']}' means '{correct_def}' (-1 Mastery Point)"
+        for item in st.session_state.vocab_data:
+            if item['word'] == target['word']:
+                # Minus 1, but don't go below 0
+                item['score'] = max(0, item['score'] - 1)
+                break
     
     st.session_state.current_index += 1
     load_next_question()
@@ -212,6 +238,10 @@ uploaded_file = st.sidebar.file_uploader("Upload previous progress (.json)", typ
 if uploaded_file is not None:
     try:
         data = json.load(uploaded_file)
+        # Fix for old save files that might miss 'last_correct_time'
+        for item in data:
+            if 'last_correct_time' not in item:
+                item['last_correct_time'] = None
         st.session_state.vocab_data = data
         st.sidebar.success("Progress Loaded!")
     except:
@@ -237,7 +267,7 @@ if st.session_state.game_active == "WON":
 
 elif not st.session_state.game_active:
     st.header("Welcome!")
-    st.write(f"Goal: Answer 20 questions correctly. Get a word right 5 times to master it.")
+    st.write(f"Goal: Answer 20 questions. \n\n**Rules:** \n1. Get a word right to gain a point.\n2. You can only gain 1 point per word every 24 hours (Spaced Repetition!).\n3. Wrong answers remove a point.")
     if st.session_state.game_score > 0:
         st.info(f"Last Game Score: {st.session_state.game_score} / {ROUNDS_PER_GAME}")
     
@@ -256,7 +286,6 @@ else:
     # Word and Audio Section
     st.markdown(f"### Word: **{st.session_state.current_question['word']}**")
     
-    # Audio Player
     if st.session_state.current_audio:
         st.audio(st.session_state.current_audio, format="audio/mp3")
     else:
