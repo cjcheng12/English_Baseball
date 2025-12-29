@@ -339,6 +339,23 @@ def tts_mp3_bytes(txt: str) -> bytes:
 def get_audio_stream(txt: str):
     b = tts_mp3_bytes(txt)
     return io.BytesIO(b) if b else None
+import re  # 若你前面還沒 import
+
+def sentence_for_tts(ex: str, word: str) -> str:
+    ex = (ex or "").strip()
+    word = (word or "").strip()
+    if not ex:
+        return word
+
+    # 把 ___ 換成真正的單字，避免 TTS 念 underscore
+    if "___" in ex:
+        ex = ex.replace("___", word)
+
+    # 保險：移除任何殘留底線
+    ex = re.sub(r"_+", " ", ex)
+
+    return ex
+
 
 # =========================
 # Sentence highlight (28px)
@@ -410,7 +427,10 @@ def next_q():
         t = st.session_state.session_words[st.session_state.current_index]
         st.session_state.current_question = t
         st.session_state.word_audio = get_audio_stream(t["word"])
-        st.session_state.sentence_audio = get_audio_stream(t.get("ex", ""))
+        st.session_state.sentence_audio = get_audio_stream(
+    sentence_for_tts(t.get("ex", ""), t.get("word", ""))
+)
+
 
         pool = [w["def"] for w in st.session_state.vocab_data if w["def"] != t["def"]]
         pool = list(dict.fromkeys(pool))  # de-dup
