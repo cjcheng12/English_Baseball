@@ -12,7 +12,7 @@ COOLDOWN_SECONDS = 86400  # 24 Hours
 
 # --- THE 150 VOCABULARY LIST ---
 initial_word_data = [
-    # Baseball & Field (30)
+    # Baseball Terms
     {"word": "Pitcher", "def": "投手"}, {"word": "Catcher", "def": "捕手"},
     {"word": "Umpire", "def": "裁判"}, {"word": "Inning", "def": "局 (比賽的)"},
     {"word": "Dugout", "def": "球員休息區"}, {"word": "Bullpen", "def": "牛棚"},
@@ -28,8 +28,7 @@ initial_word_data = [
     {"word": "Helmet", "def": "頭盔"}, {"word": "Jersey", "def": "球衣"},
     {"word": "Mascot", "def": "吉祥物"}, {"word": "Scoreboard", "def": "計分板"},
     {"word": "Spectator", "def": "觀眾"}, {"word": "Diamond", "def": "棒球場內野"},
-
-    # Advanced Adjectives (40)
+    # Advanced Adjectives
     {"word": "Phenomenal", "def": "非凡的"}, {"word": "Legendary", "def": "傳奇的"},
     {"word": "Dominant", "def": "佔優勢的"}, {"word": "Versatile", "def": "全能的"},
     {"word": "Aggressive", "def": "積極的"}, {"word": "Defensive", "def": "防守的"},
@@ -50,8 +49,7 @@ initial_word_data = [
     {"word": "Formidable", "def": "強大的"}, {"word": "Skillful", "def": "熟練的"},
     {"word": "Impactful", "def": "有影響力的"}, {"word": "Unstoppable", "def": "無法阻擋的"},
     {"word": "Disciplined", "def": "守紀律的"}, {"word": "Cooperative", "def": "合作的"},
-
-    # Advanced Verbs (40)
+    # Verbs
     {"word": "Sprint", "def": "衝刺"}, {"word": "Launch", "def": "大力擊出"},
     {"word": "Celebrate", "def": "慶祝"}, {"word": "Achieve", "def": "達成"},
     {"word": "Defeat", "def": "擊敗"}, {"word": "Conquer", "def": "征服"},
@@ -62,18 +60,17 @@ initial_word_data = [
     {"word": "Trade", "def": "交易"}, {"word": "Encourage", "def": "鼓勵"},
     {"word": "Inspire", "def": "啟發"}, {"word": "Represent", "def": "代表"},
     {"word": "Compete", "def": "競爭"}, {"word": "Train", "def": "訓練"},
-    {"word": "Exceed", "def": "超過"}, {"word": "Cooperate", "def": "合作"},
-    {"word": "Concentrate", "def": "專注"}, {"word": "Anticipate", "def": "預期"},
-    {"word": "Coordinate", "def": "協調"}, {"word": "Sacrifice", "def": "犧牲"},
-    {"word": "Transform", "def": "轉變"}, {"word": "Strengthen", "def": "加強"},
-    {"word": "Motivate", "def": "激勵"}, {"word": "Analyze", "def": "分析"},
-    {"word": "Overcome", "def": "克服"}, {"word": "Persist", "def": "堅持"},
-    {"word": "Succeed", "def": "成功"}, {"word": "Prepare", "def": "準備"},
-    {"word": "Adjust", "def": "調整"}, {"word": "Execute", "def": "執行"},
-    {"word": "Dominate", "def": "統治/主宰"}, {"word": "Master", "def": "精通"},
-    {"word": "Sustain", "def": "維持"}, {"word": "Vocalize", "def": "喊出"},
-
-    # Concepts & Nouns (40)
+    {"word": "Exceed", "def": "超過"}, {"word": "Concentrate", "def": "專注"},
+    {"word": "Anticipate", "def": "預期"}, {"word": "Coordinate", "def": "協調"},
+    {"word": "Sacrifice", "def": "犧牲"}, {"word": "Transform", "def": "轉變"},
+    {"word": "Strengthen", "def": "加強"}, {"word": "Motivate", "def": "激勵"},
+    {"word": "Analyze", "def": "分析"}, {"word": "Overcome", "def": "克服"},
+    {"word": "Persist", "def": "堅持"}, {"word": "Succeed", "def": "成功"},
+    {"word": "Prepare", "def": "準備"}, {"word": "Adjust", "def": "調整"},
+    {"word": "Execute", "def": "執行"}, {"word": "Dominate", "def": "主宰"},
+    {"word": "Master", "def": "精通"}, {"word": "Sustain", "def": "維持"},
+    {"word": "Vocalize", "def": "喊出"}, {"word": "Collaborate", "def": "協作"},
+    # Concepts
     {"word": "Opportunity", "def": "機會"}, {"word": "Strategy", "def": "策略"},
     {"word": "Technique", "def": "技巧"}, {"word": "Victory", "def": "勝利"},
     {"word": "Dedication", "def": "奉獻"}, {"word": "Obstacle", "def": "障礙"},
@@ -85,92 +82,80 @@ initial_word_data = [
     {"word": "Pressure", "def": "壓力"}, {"word": "Success", "def": "成功"},
     {"word": "Failure", "def": "失敗"}, {"word": "Effort", "def": "努力"},
     {"word": "Endurance", "def": "耐力"}, {"word": "Potential", "def": "潛力"},
-    {"word": "Agility", "def": "敏捷"}, {"word": "Momentum", "def": "勢頭/動力"},
+    {"word": "Agility", "def": "敏捷"}, {"word": "Momentum", "def": "動力"},
     {"word": "Rivalry", "def": "競爭關係"}, {"word": "Leadership", "def": "領導力"},
     {"word": "Integrity", "def": "誠信"}, {"word": "Loyalty", "def": "忠誠"},
-    {"word": "Ambition", "def": "雄心"}, {"word": "Legacy", "def": "遺產/傳承"},
-    {"word": "Adversity", "def": "逆境"}, {"word": "Concentration", "def": "注意力"},
-    {"word": "Foundation", "def": "基礎"}, {"word": "Magnitude", "def": "巨大/量級"},
-    {"word": "Excellence", "def": "卓越"}, {"word": "Perspective", "def": "視角"},
-    {"word": "Discipline", "def": "紀律"}, {"word": "Inspiration", "def": "靈感"},
-    {"word": "Preparation", "def": "準備工作"}, {"word": "Achievement", "def": "成就"}
+    {"word": "Ambition", "def": "雄心"}, {"word": "Legacy", "def": "傳承"},
+    {"word": "Adversity", "def": "逆境"}, {"word": "Foundation", "def": "基礎"},
+    {"word": "Magnitude", "def": "量級"}, {"word": "Excellence", "def": "卓越"},
+    {"word": "Perspective", "def": "視角"}, {"word": "Inspiration", "def": "靈感"},
+    {"word": "Preparation", "def": "準備"}, {"word": "Achievement", "def": "成就"},
+    {"word": "Motivation", "def": "動機"}, {"word": "Commitment", "def": "承諾"}
 ]
 
-# --- INITIALIZE SESSION STATE ---
+# --- SESSION INITIALIZATION ---
 if 'vocab_data' not in st.session_state:
     for item in initial_word_data:
         item['score'] = 0
-        item['last_correct_time'] = None 
+        item['last_correct_time'] = None
     st.session_state.vocab_data = initial_word_data
 
-# Game Variables
-for key in ['current_index', 'game_score', 'game_active', 'current_question', 'options', 'feedback', 'current_audio']:
-    if key not in st.session_state:
-        st.session_state[key] = None if 'audio' in key or 'question' in key else (False if 'active' in key else ("" if 'feedback' in key else ([] if 'options' in key else 0)))
+keys = ['current_index', 'game_score', 'game_active', 'current_question', 'options', 'feedback', 'current_audio']
+for k in keys:
+    if k not in st.session_state:
+        st.session_state[k] = None if 'audio' in k or 'question' in k else (False if 'active' in k else ("" if 'feedback' in k else ([] if 'options' in k else 0)))
 
-# --- FUNCTIONS ---
-def generate_audio(text):
+# --- LOGIC ---
+def get_audio(txt):
     try:
-        tts = gTTS(text=text, lang='en')
-        fp = io.BytesIO()
-        tts.write_to_fp(fp)
-        fp.seek(0)
-        return fp
+        tts = gTTS(text=txt, lang='en')
+        f = io.BytesIO()
+        tts.write_to_fp(f)
+        f.seek(0)
+        return f
     except: return None
 
-def start_new_game():
-    candidates = [w for w in st.session_state.vocab_data if w['score'] < MASTERY_THRESHOLD]
-    if not candidates:
-        st.session_state.game_active = "WON"
-        return
-    st.session_state.session_words = random.sample(candidates, min(ROUNDS_PER_GAME, len(candidates)))
-    st.session_state.current_index = 0
-    st.session_state.game_score = 0
-    st.session_state.game_active = True
-    st.session_state.feedback = ""
-    load_next_question()
+def start_game():
+    cands = [w for w in st.session_state.vocab_data if w['score'] < MASTERY_THRESHOLD]
+    if not cands: st.session_state.game_active = "WON"; return
+    st.session_state.session_words = random.sample(cands, min(ROUNDS_PER_GAME, len(cands)))
+    st.session_state.current_index, st.session_state.game_score, st.session_state.game_active, st.session_state.feedback = 0, 0, True, ""
+    next_q()
 
-def load_next_question():
+def next_q():
     if st.session_state.current_index < len(st.session_state.session_words):
-        target = st.session_state.session_words[st.session_state.current_index]
-        st.session_state.current_question = target
-        st.session_state.current_audio = generate_audio(target['word'])
-        correct_def = target['def']
-        all_defs = [item['def'] for item in st.session_state.vocab_data if item['def'] != correct_def]
-        st.session_state.options = random.sample(all_defs, 3) + [correct_def]
-        random.shuffle(st.session_state.options)
+        t = st.session_state.session_words[st.session_state.current_index]
+        st.session_state.current_question, st.session_state.current_audio = t, get_audio(t['word'])
+        opts = [t['def']] + random.sample([w['def'] for w in st.session_state.vocab_data if w['def'] != t['def']], 3)
+        random.shuffle(opts)
+        st.session_state.options = opts
     else: st.session_state.game_active = False
 
-def check_answer(selected):
-    target = st.session_state.current_question
-    correct = target['def']
-    if selected == correct:
+def check(ans):
+    t, now = st.session_state.current_question, time.time()
+    if ans == t['def']:
         st.session_state.game_score += 1
-        now = time.time()
-        for item in st.session_state.vocab_data:
-            if item['word'] == target['word']:
-                last = item.get('last_correct_time')
+        for i in st.session_state.vocab_data:
+            if i['word'] == t['word']:
+                last = i.get('last_correct_time')
                 if last is None or (now - last > COOLDOWN_SECONDS):
-                    item['score'] += 1
-                    item['last_correct_time'] = now
-                    st.session_state.feedback = f"✅ Correct! (+1 Mastery Point)"
+                    i['score'], i['last_correct_time'] = i['score'] + 1, now
+                    st.session_state.feedback = "✅ Correct! (+1 Mastery Point)"
                 else:
-                    hrs = int((COOLDOWN_SECONDS - (now - last)) / 3600)
-                    st.session_state.feedback = f"✅ Correct! (Come back in {hrs}h for a point)"
+                    h = int((COOLDOWN_SECONDS - (now - last)) / 3600)
+                    st.session_state.feedback = f"✅ Correct! (Practice again in {h}h for a point)"
                 break
     else:
-        st.session_state.feedback = f"❌ Wrong. '{target['word']}' = '{correct}' (-1 Point)"
-        for item in st.session_state.vocab_data:
-            if item['word'] == target['word']:
-                item['score'] = max(0, item['score'] - 1)
-                break
+        st.session_state.feedback = f"❌ Wrong. '{t['word']}' = '{t['def']}' (-1 Point)"
+        for i in st.session_state.vocab_data:
+            if i['word'] == t['word']: i['score'] = max(0, i['score'] - 1); break
     st.session_state.current_index += 1
-    load_next_question()
+    next_q()
 
-# --- APP LAYOUT ---
+# --- UI ---
+st.set_page_config(page_title="Baseball Vocab", page_icon="⚾")
 st.title("⚾ 150 Baseball Superstars Vocab")
 
-# Progress
 st.sidebar.header("Progress Manager")
 up = st.sidebar.file_uploader("Upload Progress (.json)", type="json")
 if up:
@@ -181,13 +166,12 @@ mastered = sum(1 for w in st.session_state.vocab_data if w['score'] >= MASTERY_T
 st.sidebar.metric("Mastered", f"{mastered} / 150")
 st.sidebar.download_button("💾 Save Progress", json.dumps(st.session_state.vocab_data, indent=4), "progress.json")
 
-# Game Logic
 if st.session_state.game_active == "WON":
-    st.balloons(); st.success("🏆 MASTER OF THE BALLPARK!")
+    st.balloons(); st.success("🏆 MVP! You've mastered the book!")
+    if st.button("Restart All"): st.session_state.vocab_data = initial_word_data; st.rerun()
 elif not st.session_state.game_active:
     st.header("Ready to Practice?")
-    st.write("- Correct Answer: +1 Mastery (Once/24h)\n- Wrong Answer: -1 Mastery")
-    if st.button("▶️ Play 20 Rounds"): start_new_game(); st.rerun()
+    if st.button("▶️ Start Game"): start_game(); st.rerun()
 else:
     st.progress(st.session_state.current_index / len(st.session_state.session_words))
     st.metric("Session Score", st.session_state.game_score)
@@ -195,10 +179,9 @@ else:
     if st.session_state.current_audio: st.audio(st.session_state.current_audio)
     
     cols = st.columns(2)
-    for i, opt in enumerate(st.session_state.options):
-        if cols[i%2].button(opt, use_container_width=True):
-            check_answer(opt); st.rerun()
+    for i, o in enumerate(st.session_state.options):
+        if cols[i%2].button(o, use_container_width=True): check(o); st.rerun()
     
     if st.session_state.feedback:
-        st.info(st.session_state.feedback) if "Correct" in st.session_state.feedback else st.error(st.session_state.feedback)
-
+        if "Correct" in st.session_state.feedback: st.success(st.session_state.feedback)
+        else: st.error(st.session_state.feedback)
