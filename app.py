@@ -4,11 +4,13 @@ import json
 import time
 from gtts import gTTS
 import io
+import copy
+import pandas as pd
 
 # --- CONFIGURATION ---
 ROUNDS_PER_GAME = 20
 MASTERY_THRESHOLD = 5
-COOLDOWN_SECONDS = 86400  # 24 Hours
+COOLDOWN_SECONDS = 86400  # 24 Hours (Spaced Repetition)
 
 # --- THE 150 VOCABULARY LIST ---
 initial_word_data = [
@@ -93,95 +95,172 @@ initial_word_data = [
     {"word": "Motivation", "def": "動機"}, {"word": "Commitment", "def": "承諾"}
 ]
 
-# --- SESSION INITIALIZATION ---
-if 'vocab_data' not in st.session_state:
-    for item in initial_word_data:
-        item['score'] = 0
-        item['last_correct_time'] = None
-    st.session_state.vocab_data = initial_word_data
+# ---------------------------
+# Helpers: Initialization & Type Protection
+# ---------------------------
+def fresh_initial_state():
+    data = copy.deepcopy(initial_word_data)
+    for item in data:
+        item["score"] = 0
+        item["last_correct_time"] = None
+    return data
 
-keys = ['current_index', 'game_score', 'game_active', 'current_question', 'options', 'feedback', 'current_audio']
-for k in keys:
-    if k not in st.session_state:
-        st.session_state[k] = None if 'audio' in k or 'question' in k else (False if 'active' in k else ("" if 'feedback' in k else ([] if 'options' in k else 0)))
+def merge_progress(loaded):
+    base = fresh_initial_state()
+    if not isinstance(loaded, list): return base
+    index = {w.get("word"): w for w in loaded if isinstance(w, dict) and w.get("word")}
+    for item in base:
+        src = index.get(item["word"])
+        if src:
+            try:
+                item["score"] = int(src.get("score", 0))
+                lct = src.get("last_correct_time")
+                item["last_correct_time"] = float(lct) if lct else None
+            except: pass
+    return base
 
-# --- LOGIC ---
-def get_audio(txt):
+# --- SESSION STATE ---
+DEFAULTS = {
+    "current_index": 0, "game_score": 0, "game_active": False,
+    "current_question": None, "options": [], "feedback": "",
+    "current_audio": None, "session_words": []
+}
+for k, v in DEFAULTS.items():
+    if k not in st.session_state: st.session_state[k] = v
+
+if "vocab_data" not in st.session_state:
+    st.session_state.vocab_data = fresh_initial_state()
+
+# --- AUDIO (cached) ---
+@st.cache_data(show_spinner=False)
+def tts_mp3_bytes(txt: str) -> bytes:
     try:
-        tts = gTTS(text=txt, lang='en')
+        tts = gTTS(text=txt, lang="en")
         f = io.BytesIO()
         tts.write_to_fp(f)
-        f.seek(0)
-        return f
-    except: return None
+        return f.getvalue()
+    except: return b""
 
+def get_audio(txt):
+    b = tts_mp3_bytes(txt)
+    return io.BytesIO(b) if b else None
+
+# --- GAME LOGIC ---
 def start_game():
-    cands = [w for w in st.session_state.vocab_data if w['score'] < MASTERY_THRESHOLD]
-    if not cands: st.session_state.game_active = "WON"; return
+    cands = [w for w in st.session_state.vocab_data if w["score"] < MASTERY_THRESHOLD]
+    if not cands:
+        st.session_state.game_active = "WON"
+        return
     st.session_state.session_words = random.sample(cands, min(ROUNDS_PER_GAME, len(cands)))
-    st.session_state.current_index, st.session_state.game_score, st.session_state.game_active, st.session_state.feedback = 0, 0, True, ""
+    st.session_state.current_index = 0
+    st.session_state.game_score = 0
+    st.session_state.game_active = True
+    st.session_state.feedback = ""
     next_q()
 
 def next_q():
     if st.session_state.current_index < len(st.session_state.session_words):
         t = st.session_state.session_words[st.session_state.current_index]
-        st.session_state.current_question, st.session_state.current_audio = t, get_audio(t['word'])
-        opts = [t['def']] + random.sample([w['def'] for w in st.session_state.vocab_data if w['def'] != t['def']], 3)
+        st.session_state.current_question = t
+        st.session_state.current_audio = get_audio(t['word'])
+        # Safe pool for options
+        pool = list(dict.fromkeys([w["def"] for w in st.session_state.vocab_data if w["def"] != t["def"]]))
+        opts = [t["def"]] + random.sample(pool, min(3, len(pool)))
         random.shuffle(opts)
         st.session_state.options = opts
-    else: st.session_state.game_active = False
+    else:
+        st.session_state.game_active = False
 
 def check(ans):
     t, now = st.session_state.current_question, time.time()
-    if ans == t['def']:
+    if not t: return
+    if ans == t["def"]:
         st.session_state.game_score += 1
         for i in st.session_state.vocab_data:
-            if i['word'] == t['word']:
-                last = i.get('last_correct_time')
+            if i["word"] == t["word"]:
+                last = i.get("last_correct_time")
                 if last is None or (now - last > COOLDOWN_SECONDS):
-                    i['score'], i['last_correct_time'] = i['score'] + 1, now
+                    i["score"], i["last_correct_time"] = i["score"] + 1, now
                     st.session_state.feedback = "✅ Correct! (+1 Mastery Point)"
                 else:
                     h = int((COOLDOWN_SECONDS - (now - last)) / 3600)
-                    st.session_state.feedback = f"✅ Correct! (Practice again in {h}h for a point)"
+                    st.session_state.feedback = f"✅ Correct! (Gain point in {h}h)"
                 break
     else:
         st.session_state.feedback = f"❌ Wrong. '{t['word']}' = '{t['def']}' (-1 Point)"
         for i in st.session_state.vocab_data:
-            if i['word'] == t['word']: i['score'] = max(0, i['score'] - 1); break
+            if i["word"] == t["word"]:
+                i["score"] = max(0, i["score"] - 1)
+                break
     st.session_state.current_index += 1
     next_q()
 
 # --- UI ---
-st.set_page_config(page_title="Baseball Vocab", page_icon="⚾")
+st.set_page_config(page_title="Baseball Superstars Vocab", page_icon="⚾")
 st.title("⚾ 150 Baseball Superstars Vocab")
 
+# Sidebar: Save/Load
 st.sidebar.header("Progress Manager")
 up = st.sidebar.file_uploader("Upload Progress (.json)", type="json")
 if up:
-    st.session_state.vocab_data = json.load(up)
-    st.sidebar.success("Loaded!")
+    try:
+        st.session_state.vocab_data = merge_progress(json.load(up))
+        st.sidebar.success("Progress Loaded!")
+    except: st.sidebar.error("Invalid File.")
 
-mastered = sum(1 for w in st.session_state.vocab_data if w['score'] >= MASTERY_THRESHOLD)
-st.sidebar.metric("Mastered", f"{mastered} / 150")
-st.sidebar.download_button("💾 Save Progress", json.dumps(st.session_state.vocab_data, indent=4), "progress.json")
+mastered_count = sum(1 for w in st.session_state.vocab_data if w["score"] >= MASTERY_THRESHOLD)
+st.sidebar.metric("Mastered Words", f"{mastered_count} / 150")
+st.sidebar.download_button(
+    "💾 Download Save File", 
+    data=json.dumps(st.session_state.vocab_data, indent=4, ensure_ascii=False), 
+    file_name="progress.json"
+)
 
+# Main Game Area
 if st.session_state.game_active == "WON":
-    st.balloons(); st.success("🏆 MVP! You've mastered the book!")
-    if st.button("Restart All"): st.session_state.vocab_data = initial_word_data; st.rerun()
+    st.balloons()
+    st.success("🏆 MVP! You've mastered the entire book!")
+    if st.button("Reset Everything (New Season)"):
+        st.session_state.vocab_data = fresh_initial_state()
+        st.session_state.game_active = False
+        st.rerun()
+
 elif not st.session_state.game_active:
-    st.header("Ready to Practice?")
-    if st.button("▶️ Start Game"): start_game(); st.rerun()
-else:
-    st.progress(st.session_state.current_index / len(st.session_state.session_words))
-    st.metric("Session Score", st.session_state.game_score)
-    st.markdown(f"### Word: **{st.session_state.current_question['word']}**")
-    if st.session_state.current_audio: st.audio(st.session_state.current_audio)
+    st.header("Home Plate")
+    if st.button("▶️ Start 20 Round Game", use_container_width=True):
+        start_game()
+        st.rerun()
     
+    # Show Progress Table
+    st.markdown("---")
+    st.subheader("Your Stats (Mastery Level 1-5)")
+    df = pd.DataFrame(st.session_state.vocab_data)
+    if not df.empty:
+        # Show words with some progress
+        mastering = df[df['score'] > 0].sort_values(by='score', ascending=False)
+        if not mastering.empty:
+            st.table(mastering[['word', 'def', 'score']].head(15))
+        else:
+            st.info("Start a game to begin earning Mastery points!")
+
+else:
+    # Active Quiz
+    total_rounds = len(st.session_state.session_words)
+    st.progress(st.session_state.current_index / total_rounds)
+    st.metric("Session Score", st.session_state.game_score)
+    
+    st.markdown(f"### Word: **{st.session_state.current_question['word']}**")
+    if st.session_state.current_audio:
+        st.audio(st.session_state.current_audio)
+
     cols = st.columns(2)
-    for i, o in enumerate(st.session_state.options):
-        if cols[i%2].button(o, use_container_width=True): check(o); st.rerun()
+    for i, opt in enumerate(st.session_state.options):
+        if cols[i % 2].button(opt, use_container_width=True):
+            check(opt)
+            st.rerun()
     
     if st.session_state.feedback:
-        if "Correct" in st.session_state.feedback: st.success(st.session_state.feedback)
-        else: st.error(st.session_state.feedback)
+        if "Correct" in st.session_state.feedback:
+            st.success(st.session_state.feedback)
+        else:
+            st.error(st.session_state.feedback)
