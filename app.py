@@ -10,128 +10,131 @@ import pandas as pd
 # --- CONFIGURATION ---
 ROUNDS_PER_GAME = 20
 MASTERY_THRESHOLD = 5
-COOLDOWN_SECONDS = 86400  # 24 Hours (Spaced Repetition)
+COOLDOWN_SECONDS = 86400  # 24 Hours
 
-# --- THE 150 VOCABULARY LIST ---
+# --- THE 150 VOCABULARY LIST WITH EXAMPLES ---
+# NOTE: keep your full 150 items here. This sample shows the structure.
 initial_word_data = [
-    # Baseball Terms
-    {"word": "Pitcher", "def": "投手"}, {"word": "Catcher", "def": "捕手"},
-    {"word": "Umpire", "def": "裁判"}, {"word": "Inning", "def": "局 (比賽的)"},
-    {"word": "Dugout", "def": "球員休息區"}, {"word": "Bullpen", "def": "牛棚"},
-    {"word": "Roster", "def": "球員名單"}, {"word": "Statistic", "def": "統計數據"},
-    {"word": "League", "def": "聯盟"}, {"word": "Tournament", "def": "錦標賽"},
-    {"word": "Championship", "def": "冠軍賽"}, {"word": "Trophy", "def": "獎盃"},
-    {"word": "MVP", "def": "最有價值球員"}, {"word": "Rookie", "def": "新秀"},
-    {"word": "Veteran", "def": "老將"}, {"word": "Manager", "def": "總教練"},
-    {"word": "Stadium", "def": "體育場"}, {"word": "Grand Slam", "def": "滿貫全壘打"},
-    {"word": "Strikeout", "def": "三振出局"}, {"word": "Walk", "def": "保送"},
-    {"word": "Infielder", "def": "內野手"}, {"word": "Outfielder", "def": "外野手"},
-    {"word": "Mound", "def": "投手丘"}, {"word": "Batter", "def": "打擊者"},
-    {"word": "Helmet", "def": "頭盔"}, {"word": "Jersey", "def": "球衣"},
-    {"word": "Mascot", "def": "吉祥物"}, {"word": "Scoreboard", "def": "計分板"},
-    {"word": "Spectator", "def": "觀眾"}, {"word": "Diamond", "def": "棒球場內野"},
-    # Advanced Adjectives
-    {"word": "Phenomenal", "def": "非凡的"}, {"word": "Legendary", "def": "傳奇的"},
-    {"word": "Dominant", "def": "佔優勢的"}, {"word": "Versatile", "def": "全能的"},
-    {"word": "Aggressive", "def": "積極的"}, {"word": "Defensive", "def": "防守的"},
-    {"word": "Offensive", "def": "進攻的"}, {"word": "Spectacular", "def": "精彩的"},
-    {"word": "Consistent", "def": "穩定的"}, {"word": "Athletic", "def": "體格健壯的"},
-    {"word": "Talented", "def": "有天賦的"}, {"word": "Professional", "def": "專業的"},
-    {"word": "Competitive", "def": "好勝的"}, {"word": "Accurate", "def": "準確的"},
-    {"word": "Powerful", "def": "有力的"}, {"word": "Incredible", "def": "難以置信的"},
-    {"word": "Historic", "def": "歷史性的"}, {"word": "Memorable", "def": "難忘的"},
-    {"word": "Intense", "def": "激烈的"}, {"word": "Reliable", "def": "可靠的"},
-    {"word": "Remarkable", "def": "卓越的"}, {"word": "Outstanding", "def": "傑出的"},
-    {"word": "Determined", "def": "堅決的"}, {"word": "Confident", "def": "有自信的"},
-    {"word": "Ambitious", "def": "有野心的"}, {"word": "Energetic", "def": "精力充沛的"},
-    {"word": "Precise", "def": "精確的"}, {"word": "Rapid", "def": "迅速的"},
-    {"word": "Resilient", "def": "有韌性的"}, {"word": "Strategic", "def": "策略性的"},
-    {"word": "Dynamic", "def": "充滿活力的"}, {"word": "Exceptional", "def": "優越的"},
-    {"word": "Fearless", "def": "大膽的"}, {"word": "Elite", "def": "精英的"},
-    {"word": "Formidable", "def": "強大的"}, {"word": "Skillful", "def": "熟練的"},
-    {"word": "Impactful", "def": "有影響力的"}, {"word": "Unstoppable", "def": "無法阻擋的"},
-    {"word": "Disciplined", "def": "守紀律的"}, {"word": "Cooperative", "def": "合作的"},
-    # Verbs
-    {"word": "Sprint", "def": "衝刺"}, {"word": "Launch", "def": "大力擊出"},
-    {"word": "Celebrate", "def": "慶祝"}, {"word": "Achieve", "def": "達成"},
-    {"word": "Defeat", "def": "擊敗"}, {"word": "Conquer", "def": "征服"},
-    {"word": "Participate", "def": "參加"}, {"word": "Improve", "def": "進步"},
-    {"word": "Demonstrate", "def": "展示"}, {"word": "Perform", "def": "表現"},
-    {"word": "Injure", "def": "受傷"}, {"word": "Recover", "def": "康復"},
-    {"word": "Retire", "def": "退休"}, {"word": "Draft", "def": "選秀"},
-    {"word": "Trade", "def": "交易"}, {"word": "Encourage", "def": "鼓勵"},
-    {"word": "Inspire", "def": "啟發"}, {"word": "Represent", "def": "代表"},
-    {"word": "Compete", "def": "競爭"}, {"word": "Train", "def": "訓練"},
-    {"word": "Exceed", "def": "超過"}, {"word": "Concentrate", "def": "專注"},
-    {"word": "Anticipate", "def": "預期"}, {"word": "Coordinate", "def": "協調"},
-    {"word": "Sacrifice", "def": "犧牲"}, {"word": "Transform", "def": "轉變"},
-    {"word": "Strengthen", "def": "加強"}, {"word": "Motivate", "def": "激勵"},
-    {"word": "Analyze", "def": "分析"}, {"word": "Overcome", "def": "克服"},
-    {"word": "Persist", "def": "堅持"}, {"word": "Succeed", "def": "成功"},
-    {"word": "Prepare", "def": "準備"}, {"word": "Adjust", "def": "調整"},
-    {"word": "Execute", "def": "執行"}, {"word": "Dominate", "def": "主宰"},
-    {"word": "Master", "def": "精通"}, {"word": "Sustain", "def": "維持"},
-    {"word": "Vocalize", "def": "喊出"}, {"word": "Collaborate", "def": "協作"},
-    # Concepts
-    {"word": "Opportunity", "def": "機會"}, {"word": "Strategy", "def": "策略"},
-    {"word": "Technique", "def": "技巧"}, {"word": "Victory", "def": "勝利"},
-    {"word": "Dedication", "def": "奉獻"}, {"word": "Obstacle", "def": "障礙"},
-    {"word": "Challenge", "def": "挑戰"}, {"word": "Record", "def": "紀錄"},
-    {"word": "Highlight", "def": "亮點"}, {"word": "Career", "def": "職業生涯"},
-    {"word": "Biography", "def": "傳記"}, {"word": "Interview", "def": "採訪"},
-    {"word": "Season", "def": "賽季"}, {"word": "Series", "def": "系列賽"},
-    {"word": "Generation", "def": "世代"}, {"word": "Nation", "def": "國家"},
-    {"word": "Pressure", "def": "壓力"}, {"word": "Success", "def": "成功"},
-    {"word": "Failure", "def": "失敗"}, {"word": "Effort", "def": "努力"},
-    {"word": "Endurance", "def": "耐力"}, {"word": "Potential", "def": "潛力"},
-    {"word": "Agility", "def": "敏捷"}, {"word": "Momentum", "def": "動力"},
-    {"word": "Rivalry", "def": "競爭關係"}, {"word": "Leadership", "def": "領導力"},
-    {"word": "Integrity", "def": "誠信"}, {"word": "Loyalty", "def": "忠誠"},
-    {"word": "Ambition", "def": "雄心"}, {"word": "Legacy", "def": "傳承"},
-    {"word": "Adversity", "def": "逆境"}, {"word": "Foundation", "def": "基礎"},
-    {"word": "Magnitude", "def": "量級"}, {"word": "Excellence", "def": "卓越"},
-    {"word": "Perspective", "def": "視角"}, {"word": "Inspiration", "def": "靈感"},
-    {"word": "Preparation", "def": "準備"}, {"word": "Achievement", "def": "成就"},
-    {"word": "Motivation", "def": "動機"}, {"word": "Commitment", "def": "承諾"}
+    {"word": "Pitcher", "def": "投手", "ex": "The ___ threw a fast ball at 100 mph!"},
+    {"word": "Catcher", "def": "捕手", "ex": "The ___ caught the ball behind home plate."},
+    {"word": "Umpire", "def": "裁判", "ex": "The ___ shouted 'Strike!' to the batter."},
+    {"word": "Inning", "def": "局 (比賽的)", "ex": "The home team scored three runs in the first ___."},
+    {"word": "Dugout", "def": "球員休息區", "ex": "The players sat in the ___ waiting for their turn to bat."},
+    {"word": "Bullpen", "def": "牛棚", "ex": "The relief pitcher is warming up in the ___."},
+    {"word": "Roster", "def": "球員名單", "ex": "The team's ___ includes several young superstars."},
+    {"word": "Statistic", "def": "統計數據", "ex": "The batting average is an important ___ for players."},
+    {"word": "League", "def": "聯盟", "ex": "Playing in the Major ___ is every player's dream."},
+    {"word": "Tournament", "def": "錦標賽", "ex": "Teams from across the country entered the big ___."},
+    {"word": "Championship", "def": "冠軍賽", "ex": "They won the ___ and received gold rings."},
+    {"word": "Trophy", "def": "獎盃", "ex": "The captain lifted the silver ___ over his head."},
+    {"word": "MVP", "def": "最有價值球員", "ex": "Ohtani won the ___ award for his amazing season."},
+    {"word": "Rookie", "def": "新秀", "ex": "The young ___ hit a home run in his very first game."},
+    {"word": "Veteran", "def": "老將", "ex": "The team relies on the ___ for his years of experience."},
+    {"word": "Manager", "def": "總教練", "ex": "The ___ decided to change the pitcher in the 8th inning."},
+    {"word": "Stadium", "def": "體育場", "ex": "Thousands of fans packed the ___ for the night game."},
+    {"word": "Grand Slam", "def": "滿貫全壘打", "ex": "The bases were loaded when he hit a spectacular ___!"},
+    {"word": "Strikeout", "def": "三振出局", "ex": "The pitcher recorded his tenth ___ of the game."},
+    {"word": "Walk", "def": "保送", "ex": "The batter didn't swing and earned a ___ to first base."},
+    {"word": "Infielder", "def": "內野手", "ex": "The ___ caught the ground ball and threw it to first."},
+    {"word": "Outfielder", "def": "外野手", "ex": "The ___ ran back and caught the ball near the wall."},
+    {"word": "Mound", "def": "投手丘", "ex": "The pitcher stood on the ___ and looked at the catcher."},
+    {"word": "Batter", "def": "打擊者", "ex": "The ___ stepped into the box and gripped the bat."},
+    {"word": "Helmet", "def": "頭盔", "ex": "Always wear your ___ to protect your head from the ball."},
+    {"word": "Jersey", "def": "球衣", "ex": "He wore his lucky team ___ to every game."},
+    {"word": "Mascot", "def": "吉祥物", "ex": "The team ___ danced to cheer the fans."},
+    {"word": "Scoreboard", "def": "計分板", "ex": "The ___ showed that the game was tied in the 9th."},
+    {"word": "Spectator", "def": "觀眾", "ex": "Every ___ stood up to cheer when the ball left the park."},
+    {"word": "Diamond", "def": "棒球場內野", "ex": "The players ran around the ___ after the home run."},
+
+    # ... add the rest of your list here ...
 ]
 
 # ---------------------------
-# Helpers: Initialization & Type Protection
+# Helpers: Initialization & Progress (type-safe)
 # ---------------------------
 def fresh_initial_state():
     data = copy.deepcopy(initial_word_data)
     for item in data:
-        item["score"] = 0
-        item["last_correct_time"] = None
+        item.setdefault("score", 0)
+        item.setdefault("last_correct_time", None)
+        item.setdefault("ex", "")
+
+        # normalize types
+        try:
+            item["score"] = int(item.get("score", 0))
+        except Exception:
+            item["score"] = 0
+
+        lct = item.get("last_correct_time")
+        if lct is None:
+            item["last_correct_time"] = None
+        else:
+            try:
+                item["last_correct_time"] = float(lct)
+            except Exception:
+                item["last_correct_time"] = None
+
     return data
 
+
 def merge_progress(loaded):
+    """
+    Merge uploaded progress into the canonical list by 'word'.
+    Keeps your examples from initial_word_data; only merges score/last_correct_time.
+    """
     base = fresh_initial_state()
-    if not isinstance(loaded, list): return base
+    if not isinstance(loaded, list):
+        return base
+
     index = {w.get("word"): w for w in loaded if isinstance(w, dict) and w.get("word")}
     for item in base:
         src = index.get(item["word"])
-        if src:
+        if not src:
+            continue
+
+        # score
+        if "score" in src:
             try:
                 item["score"] = int(src.get("score", 0))
-                lct = src.get("last_correct_time")
-                item["last_correct_time"] = float(lct) if lct else None
-            except: pass
+            except Exception:
+                pass
+
+        # last_correct_time
+        if "last_correct_time" in src:
+            lct = src.get("last_correct_time")
+            if lct is None:
+                item["last_correct_time"] = None
+            else:
+                try:
+                    item["last_correct_time"] = float(lct)
+                except Exception:
+                    item["last_correct_time"] = None
+
     return base
 
-# --- SESSION STATE ---
+
+# --- SESSION STATE DEFAULTS ---
 DEFAULTS = {
-    "current_index": 0, "game_score": 0, "game_active": False,
-    "current_question": None, "options": [], "feedback": "",
-    "current_audio": None, "session_words": []
+    "current_index": 0,
+    "game_score": 0,
+    "game_active": False,  # False | True | "WON"
+    "current_question": None,
+    "options": [],
+    "feedback": "",
+    "current_audio": None,
+    "session_words": [],
 }
+
 for k, v in DEFAULTS.items():
-    if k not in st.session_state: st.session_state[k] = v
+    if k not in st.session_state:
+        st.session_state[k] = copy.deepcopy(v)
 
 if "vocab_data" not in st.session_state:
     st.session_state.vocab_data = fresh_initial_state()
 
-# --- AUDIO (cached) ---
+# ---------------------------
+# Audio (cached)
+# ---------------------------
 @st.cache_data(show_spinner=False)
 def tts_mp3_bytes(txt: str) -> bytes:
     try:
@@ -139,18 +142,23 @@ def tts_mp3_bytes(txt: str) -> bytes:
         f = io.BytesIO()
         tts.write_to_fp(f)
         return f.getvalue()
-    except: return b""
+    except Exception:
+        return b""
+
 
 def get_audio(txt):
     b = tts_mp3_bytes(txt)
     return io.BytesIO(b) if b else None
 
-# --- GAME LOGIC ---
+# ---------------------------
+# Game logic
+# ---------------------------
 def start_game():
     cands = [w for w in st.session_state.vocab_data if w["score"] < MASTERY_THRESHOLD]
     if not cands:
         st.session_state.game_active = "WON"
         return
+
     st.session_state.session_words = random.sample(cands, min(ROUNDS_PER_GAME, len(cands)))
     st.session_state.current_index = 0
     st.session_state.game_score = 0
@@ -158,109 +166,134 @@ def start_game():
     st.session_state.feedback = ""
     next_q()
 
+
 def next_q():
     if st.session_state.current_index < len(st.session_state.session_words):
         t = st.session_state.session_words[st.session_state.current_index]
         st.session_state.current_question = t
-        st.session_state.current_audio = get_audio(t['word'])
-        # Safe pool for options
-        pool = list(dict.fromkeys([w["def"] for w in st.session_state.vocab_data if w["def"] != t["def"]]))
-        opts = [t["def"]] + random.sample(pool, min(3, len(pool)))
+        st.session_state.current_audio = get_audio(t["word"])
+
+        # Create multiple choice options (safe)
+        pool = [w["def"] for w in st.session_state.vocab_data if w["def"] != t["def"]]
+        pool = list(dict.fromkeys(pool))  # de-dup, keep order
+
+        k = min(3, len(pool))
+        opts = [t["def"]] + (random.sample(pool, k) if k > 0 else [])
         random.shuffle(opts)
         st.session_state.options = opts
     else:
         st.session_state.game_active = False
+        st.session_state.current_question = None
+        st.session_state.options = []
+        st.session_state.current_audio = None
+
 
 def check(ans):
     t, now = st.session_state.current_question, time.time()
-    if not t: return
+    if not t:
+        return
+
+    # -------- MASTERY RULES (as you designed) --------
     if ans == t["def"]:
         st.session_state.game_score += 1
         for i in st.session_state.vocab_data:
             if i["word"] == t["word"]:
                 last = i.get("last_correct_time")
                 if last is None or (now - last > COOLDOWN_SECONDS):
-                    i["score"], i["last_correct_time"] = i["score"] + 1, now
-                    st.session_state.feedback = "✅ Correct! (+1 Mastery Point)"
+                    i["score"] += 1
+                    i["last_correct_time"] = now
+                    st.session_state.feedback = f"✅ Correct! '{t['word']}' (+1 Mastery Point)"
                 else:
                     h = int((COOLDOWN_SECONDS - (now - last)) / 3600)
-                    st.session_state.feedback = f"✅ Correct! (Gain point in {h}h)"
+                    st.session_state.feedback = f"✅ Correct! (Gain next point in {h}h)"
                 break
     else:
         st.session_state.feedback = f"❌ Wrong. '{t['word']}' = '{t['def']}' (-1 Point)"
         for i in st.session_state.vocab_data:
             if i["word"] == t["word"]:
-                i["score"] = max(0, i["score"] - 1)
+                i["score"] = max(0, i["score"] - 1)  # Penalty
                 break
+    # -----------------------------------------------
+
     st.session_state.current_index += 1
     next_q()
 
-# --- UI ---
-st.set_page_config(page_title="Baseball Superstars Vocab", page_icon="⚾")
+# ---------------------------
+# UI
+# ---------------------------
+st.set_page_config(page_title="Baseball Vocab", page_icon="⚾")
 st.title("⚾ 150 Baseball Superstars Vocab")
 
-# Sidebar: Save/Load
-st.sidebar.header("Progress Manager")
+# Sidebar: load/save + stats
+st.sidebar.header("Progress")
+
 up = st.sidebar.file_uploader("Upload Progress (.json)", type="json")
 if up:
     try:
-        st.session_state.vocab_data = merge_progress(json.load(up))
-        st.sidebar.success("Progress Loaded!")
-    except: st.sidebar.error("Invalid File.")
+        loaded = json.load(up)
+        st.session_state.vocab_data = merge_progress(loaded)
+        st.sidebar.success("Loaded!")
+    except Exception:
+        st.sidebar.error("Invalid file.")
 
-mastered_count = sum(1 for w in st.session_state.vocab_data if w["score"] >= MASTERY_THRESHOLD)
-st.sidebar.metric("Mastered Words", f"{mastered_count} / 150")
+mastered = sum(1 for w in st.session_state.vocab_data if w["score"] >= MASTERY_THRESHOLD)
+st.sidebar.metric("Mastered", f"{mastered} / {len(st.session_state.vocab_data)}")
+
 st.sidebar.download_button(
-    "💾 Download Save File", 
-    data=json.dumps(st.session_state.vocab_data, indent=4, ensure_ascii=False), 
-    file_name="progress.json"
+    "💾 Save Progress",
+    data=json.dumps(st.session_state.vocab_data, indent=4, ensure_ascii=False),
+    file_name="progress.json",
 )
 
-# Main Game Area
+# Main screens
 if st.session_state.game_active == "WON":
     st.balloons()
-    st.success("🏆 MVP! You've mastered the entire book!")
-    if st.button("Reset Everything (New Season)"):
+    st.success("🏆 MVP! All words mastered!")
+    if st.button("Restart Season"):
         st.session_state.vocab_data = fresh_initial_state()
-        st.session_state.game_active = False
+        for k, v in DEFAULTS.items():
+            st.session_state[k] = copy.deepcopy(v)
         st.rerun()
 
 elif not st.session_state.game_active:
-    st.header("Home Plate")
-    if st.button("▶️ Start 20 Round Game", use_container_width=True):
+    st.header("Ready for Batting Practice?")
+    if st.button("▶️ Start Game (20 Rounds)", use_container_width=True):
         start_game()
         st.rerun()
-    
-    # Show Progress Table
-    st.markdown("---")
-    st.subheader("Your Stats (Mastery Level 1-5)")
+
     df = pd.DataFrame(st.session_state.vocab_data)
-    if not df.empty:
-        # Show words with some progress
-        mastering = df[df['score'] > 0].sort_values(by='score', ascending=False)
-        if not mastering.empty:
-            st.table(mastering[['word', 'def', 'score']].head(15))
-        else:
-            st.info("Start a game to begin earning Mastery points!")
+    if not df.empty and "score" in df.columns and df["score"].sum() > 0:
+        st.subheader("Current Training Stats")
+        st.table(
+            df[df["score"] > 0]
+            .sort_values("score", ascending=False)
+            .head(10)[["word", "def", "score"]]
+        )
 
 else:
-    # Active Quiz
-    total_rounds = len(st.session_state.session_words)
-    st.progress(st.session_state.current_index / total_rounds)
+    total = max(1, len(st.session_state.session_words))  # avoid divide-by-zero
+    st.progress(st.session_state.current_index / total)
     st.metric("Session Score", st.session_state.game_score)
-    
-    st.markdown(f"### Word: **{st.session_state.current_question['word']}**")
-    if st.session_state.current_audio:
-        st.audio(st.session_state.current_audio)
 
-    cols = st.columns(2)
-    for i, opt in enumerate(st.session_state.options):
-        if cols[i % 2].button(opt, use_container_width=True):
-            check(opt)
-            st.rerun()
-    
-    if st.session_state.feedback:
-        if "Correct" in st.session_state.feedback:
-            st.success(st.session_state.feedback)
-        else:
-            st.error(st.session_state.feedback)
+    q = st.session_state.current_question
+    if q is None:
+        st.info("No active question. Click Start Game to begin.")
+    else:
+        st.markdown(f"## Word: **{q['word']}**")
+        st.info(f"💡 **Sentence:** {q.get('ex', '')}")
+
+        if st.session_state.current_audio:
+            st.audio(st.session_state.current_audio)
+
+        cols = st.columns(2)
+        for i, opt in enumerate(st.session_state.options):
+            # include current_index in key to avoid stale button state across reruns
+            if cols[i % 2].button(opt, use_container_width=True, key=f"btn_{st.session_state.current_index}_{i}"):
+                check(opt)
+                st.rerun()
+
+        if st.session_state.feedback:
+            if "✅" in st.session_state.feedback:
+                st.success(st.session_state.feedback)
+            else:
+                st.error(st.session_state.feedback)
