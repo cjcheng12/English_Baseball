@@ -281,14 +281,19 @@ for k, v in DEFAULTS.items():
 # Audio & Rendering
 # =========================
 @st.cache_data(show_spinner=False)
-def tts_mp3_bytes(txt: str) -> bytes:
+def tts_mp3_bytes(txt: str):
+    # 如果傳入的是空字串，直接回傳 None
+    if not txt or not txt.strip():
+        return None
     try:
         tts = gTTS(text=txt, lang="en")
         f = io.BytesIO()
         tts.write_to_fp(f)
         return f.getvalue()
-    except: return b""
-
+    except Exception as e:
+        # 在後台記錄錯誤但不崩潰
+        print(f"TTS Error: {e}")
+        return None
 def render_sentence_box(word: str, sentence: str):
     shown = sentence.replace("___", f"<span style='color:#e63946; font-weight:900; text-decoration:underline;'>{word}</span>")
     st.markdown(f'<div style="font-size: 28px; padding: 20px; background: #f0f2f6; border-radius: 10px; border-left: 6px solid #1f77b4; margin-bottom: 14px;">💡 {shown}</div>', unsafe_allow_html=True)
@@ -385,11 +390,21 @@ else:
     st.progress(st.session_state.current_index / len(st.session_state.session_words))
     st.markdown(f"## Word: **{q['word']}** (Level {q['score']})")
     
+   # 找到顯示 Word 和 Sentence 音訊的地方
     c1, c2 = st.columns(2)
-    with c1: st.audio(st.session_state.word_audio, format="audio/mp3") if st.session_state.word_audio else None
-    with c2: st.audio(st.session_state.sentence_audio, format="audio/mp3") if st.session_state.sentence_audio else None
-    
-    render_sentence_box(q["word"], q["ex"])
+    with c1:
+        st.write("🔊 **Word**")
+        if st.session_state.word_audio:
+            st.audio(st.session_state.word_audio, format="audio/mp3")
+        else:
+            st.warning("音訊載入失敗")
+
+    with c2:
+        st.write("📖 **Sentence**")
+        if st.session_state.sentence_audio:
+            st.audio(st.session_state.sentence_audio, format="audio/mp3")
+        else:
+            st.warning("例句音訊載入失敗")ender_sentence_box(q["word"], q["ex"])
     
     cols = st.columns(2)
     for i, opt in enumerate(st.session_state.options):
