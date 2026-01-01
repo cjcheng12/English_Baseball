@@ -10,15 +10,15 @@ import re
 from upstash_redis import Redis
 
 # =========================
-# CONFIGURATION
+# 1. CONFIGURATION
 # =========================
 ROUNDS_PER_GAME = 20
 MASTERY_THRESHOLD = 5
 COOLDOWN_SECONDS = 86400  # 24 hours
-DB_KEY = "baseball_200_v1" # 雲端資料庫的鍵名
+DB_KEY = "baseball_200_v1"
 
 # =========================
-# 1. DATABASE CONNECTION (Upstash)
+# 2. DATABASE CONNECTION
 # =========================
 @st.cache_resource
 def get_redis():
@@ -33,16 +33,15 @@ redis_client = get_redis()
 def sync_to_cloud():
     """將當前進度即時寫入雲端"""
     try:
-        # 使用 json.dumps 確保格式正確地存入 Redis
         redis_client.set(DB_KEY, json.dumps(st.session_state.vocab_data))
     except Exception as e:
         st.sidebar.error(f"雲端備份失敗: {e}")
 
 # =========================
-# FULL 200-WORD VOCAB LIST
+# 3. WORD DATABASE (200 Words)
 # =========================
 initial_word_data = [
-    # --- 1-50: Baseball terms / nouns ---
+    # 棒球相關單字
     {"word": "Bullpen", "def": "牛棚", "ex": "The reliever warmed up in the ___."},
     {"word": "Roster", "def": "球員名單", "ex": "The team updated its ___ today."},
     {"word": "Statistic", "def": "統計數據", "ex": "OPS is an important ___."},
@@ -78,8 +77,7 @@ initial_word_data = [
     {"word": "Changeup", "def": "變速球", "ex": "The ___ looked like a fastball at first."},
     {"word": "Steal", "def": "盜壘", "ex": "He tried to ___ second base."},
     {"word": "Bunt", "def": "觸擊", "ex": "He laid down a perfect ___."},
-
-    # --- 51-100: Advanced adjectives ---
+    # 進階形容詞
     {"word": "Phenomenal", "def": "非凡的", "ex": "His performance was ___ tonight."},
     {"word": "Legendary", "def": "傳奇的", "ex": "That was a ___ moment in baseball history."},
     {"word": "Dominant", "def": "佔優勢的", "ex": "The pitcher was ___ from start to finish."},
@@ -129,8 +127,7 @@ initial_word_data = [
     {"word": "Immaculate", "def": "完美無瑕的", "ex": "He pitched an ___ inning."},
     {"word": "Luminous", "def": "明亮的", "ex": "The lights were ___ in the night sky."},
     {"word": "Eloquent", "def": "有說服力的", "ex": "He gave an ___ speech."},
-
-    # --- 101-150: Verbs ---
+    # 動詞
     {"word": "Sprint", "def": "衝刺", "ex": "You must ___ to beat the throw."},
     {"word": "Launch", "def": "大力擊出", "ex": "He ___ the ball into the stands."},
     {"word": "Celebrate", "def": "慶祝", "ex": "They ___ after the walk-off win."},
@@ -179,8 +176,7 @@ initial_word_data = [
     {"word": "Mitigate", "def": "減輕", "ex": "Stretching helps ___ injury risk."},
     {"word": "Emulate", "def": "效法", "ex": "Kids ___ their favorite stars."},
     {"word": "Augment", "def": "加強", "ex": "He tried to ___ his arm strength."},
-
-    # --- 151-200: Concepts ---
+    # 抽象概念與其他
     {"word": "Opportunity", "def": "機會", "ex": "Every at-bat is an ___."},
     {"word": "Strategy", "def": "策略", "ex": "The manager changed the ___."},
     {"word": "Technique", "def": "技巧", "ex": "Good ___ prevents injuries."},
@@ -234,7 +230,7 @@ initial_word_data = [
 ]
 
 # =========================
-# Helpers
+# 4. HELPERS
 # =========================
 def fresh_initial_state():
     data = copy.deepcopy(initial_word_data)
@@ -258,12 +254,31 @@ def merge_progress(loaded):
     return base
 
 # =========================
-# Session State Initialization
+# 5. AUDIO & RENDERING
+# =========================
+@st.cache_data(show_spinner=False)
+def tts_mp3_bytes(txt: str):
+    if not txt or not txt.strip():
+        return None
+    try:
+        tts = gTTS(text=txt, lang="en")
+        f = io.BytesIO()
+        tts.write_to_fp(f)
+        return f.getvalue()
+    except Exception:
+        return None
+
+def render_sentence_box(word: str, sentence: str):
+    shown = sentence.replace("___", f"<span style='color:#e63946; font-weight:900; text-decoration:underline;'>{word}</span>")
+    st.markdown(f'<div style="font-size: 28px; padding: 20px; background: #f0f2f6; border-radius: 10px; border-left: 6px solid #1f77b4; margin-bottom: 14px;">💡 {shown}</div>', unsafe_allow_html=True)
+
+# =========================
+# 6. SESSION STATE INITIALIZATION
 # =========================
 if "vocab_data" not in st.session_state:
     raw_cloud = redis_client.get(DB_KEY)
     if raw_cloud:
-        # 雲端有資料，解析並載入
+        # 雲端有資料，解析載入
         st.session_state.vocab_data = merge_progress(raw_cloud if isinstance(raw_cloud, list) else json.loads(raw_cloud))
     else:
         st.session_state.vocab_data = fresh_initial_state()
@@ -278,28 +293,7 @@ for k, v in DEFAULTS.items():
     if k not in st.session_state: st.session_state[k] = v
 
 # =========================
-# Audio & Rendering
-# =========================
-@st.cache_data(show_spinner=False)
-def tts_mp3_bytes(txt: str):
-    # 如果傳入的是空字串，直接回傳 None
-    if not txt or not txt.strip():
-        return None
-    try:
-        tts = gTTS(text=txt, lang="en")
-        f = io.BytesIO()
-        tts.write_to_fp(f)
-        return f.getvalue()
-    except Exception as e:
-        # 在後台記錄錯誤但不崩潰
-        print(f"TTS Error: {e}")
-        return None
-def render_sentence_box(word: str, sentence: str):
-    shown = sentence.replace("___", f"<span style='color:#e63946; font-weight:900; text-decoration:underline;'>{word}</span>")
-    st.markdown(f'<div style="font-size: 28px; padding: 20px; background: #f0f2f6; border-radius: 10px; border-left: 6px solid #1f77b4; margin-bottom: 14px;">💡 {shown}</div>', unsafe_allow_html=True)
-
-# =========================
-# Game Engine
+# 7. GAME ENGINE
 # =========================
 def next_q():
     if st.session_state.current_index < len(st.session_state.session_words):
@@ -308,7 +302,7 @@ def next_q():
         st.session_state.word_audio = tts_mp3_bytes(t["word"])
         st.session_state.sentence_audio = tts_mp3_bytes(t["ex"].replace("___", t["word"]))
         pool = [w["def"] for w in st.session_state.vocab_data if w["def"] != t["def"]]
-        opts = [t["def"]] + random.sample(list(set(pool)), 3)
+        opts = [t["def"]] + random.sample(list(set(pool)), min(3, len(list(set(pool)))))
         random.shuffle(opts)
         st.session_state.options = opts
     else:
@@ -337,26 +331,24 @@ def check(ans: str):
                 i["misses"] += 1
                 break
     
-    # 每題結束自動同步雲端
     sync_to_cloud()
     st.session_state.current_index += 1
     next_q()
 
 # =========================
-# UI Main
+# 8. UI MAIN
 # =========================
 st.set_page_config(page_title="Baseball Superstar Trainer", page_icon="⚾")
 st.title("⚾ Pro English & Baseball Trainer")
 
-# Sidebar
+# --- SIDEBAR ---
 st.sidebar.header("📋 Manager's Office")
 mastered = sum(1 for w in st.session_state.vocab_data if w["score"] >= MASTERY_THRESHOLD)
 remaining = len(st.session_state.vocab_data) - mastered
 st.sidebar.metric("Mastered", f"{mastered} / 200")
 st.sidebar.metric("Remaining", remaining)
 
-# 顯示熟練度清單
-with st.sidebar.expander("📈 Roster Mastery Levels"):
+with st.sidebar.expander("📈 Roster Mastery"):
     df_show = pd.DataFrame(st.session_state.vocab_data)[["word", "score", "misses"]]
     st.dataframe(df_show.sort_values("score", ascending=False), hide_index=True)
 
@@ -365,7 +357,7 @@ if st.sidebar.button("🗑️ Reset All Progress (Cloud)"):
     st.session_state.vocab_data = fresh_initial_state()
     st.rerun()
 
-# Main Screen
+# --- MAIN SCREEN ---
 if st.session_state.show_results:
     st.header("📊 Post-Game Analysis")
     st.metric("Score", f"{st.session_state.game_score} / {len(st.session_state.session_words)}")
@@ -375,6 +367,7 @@ if st.session_state.show_results:
 
 elif not st.session_state.game_active:
     st.header("Welcome to the Stadium")
+    st.caption("規則：答對增加熟練度，24小時內重複答對不額外加分。")
     if st.button("▶️ Play Ball (20 Rounds)", use_container_width=True):
         cands = [w for w in st.session_state.vocab_data if w["score"] < MASTERY_THRESHOLD]
         if not cands: st.success("🏆 MVP! All words mastered!")
@@ -390,24 +383,26 @@ else:
     st.progress(st.session_state.current_index / len(st.session_state.session_words))
     st.markdown(f"## Word: **{q['word']}** (Level {q['score']})")
     
-   # 找到顯示 Word 和 Sentence 音訊的地方
+    # 橫向音訊欄
     c1, c2 = st.columns(2)
     with c1:
         st.write("🔊 **Word**")
         if st.session_state.word_audio:
             st.audio(st.session_state.word_audio, format="audio/mp3")
         else:
-            st.warning("音訊載入失敗")
+            st.warning("音訊載入中...")
 
-   with c2:
+    with c2:
         st.write("📖 **Sentence**")
         if st.session_state.sentence_audio:
             st.audio(st.session_state.sentence_audio, format="audio/mp3")
         else:
-            st.warning("例句音訊載入失敗")
-
-    # 注意：這裡要縮排回來到外面，且名稱是 render (不是 ender)
+            st.warning("例句音訊載入中...")
+    
+    # 顯示例句框 (保持在 columns 外部以橫跨全寬)
     render_sentence_box(q["word"], q["ex"])
+    
+    # 選項按鈕
     cols = st.columns(2)
     for i, opt in enumerate(st.session_state.options):
         if cols[i % 2].button(opt, use_container_width=True, key=f"btn_{i}"):
@@ -416,43 +411,14 @@ else:
 
     if st.session_state.feedback:
         if "✅" in st.session_state.feedback: st.success(st.session_state.feedback)
-        else: st.error(st.session_state.feedback)  
+        else: st.error(st.session_state.feedback)    
    
-   
-  
     
    
-   
- 
-  
-  
-
-         
-
-
-      
-
-
-
-
-
-
-     
-    
-     
-
-
-    
-
-                    
-     
-
-
-  
-        
-  
-
     
    
-      
-         
+    
+   
+    
+
+   
