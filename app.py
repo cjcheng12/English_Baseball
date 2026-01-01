@@ -399,13 +399,15 @@ else:
         else:
             st.warning("音訊載入失敗")
 
-    with c2:
+   with c2:
         st.write("📖 **Sentence**")
         if st.session_state.sentence_audio:
             st.audio(st.session_state.sentence_audio, format="audio/mp3")
         else:
-            st.warning("例句音訊載入失敗")ender_sentence_box(q["word"], q["ex"])
-    
+            st.warning("例句音訊載入失敗")
+
+    # 注意：這裡要縮排回來到外面，且名稱是 render (不是 ender)
+    render_sentence_box(q["word"], q["ex"])
     cols = st.columns(2)
     for i, opt in enumerate(st.session_state.options):
         if cols[i % 2].button(opt, use_container_width=True, key=f"btn_{i}"):
