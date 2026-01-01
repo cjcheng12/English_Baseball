@@ -328,15 +328,35 @@ st.set_page_config(page_title="Superstar Trainer", page_icon="⚾")
 st.title("⚾ Pro English Trainer")
 
 # --- 側邊欄 ---
-st.sidebar.header("📋 Manager")
-mastered = sum(1 for w in st.session_state.vocab_data if w["score"] >= MASTERY_THRESHOLD)
-st.sidebar.metric("Mastered", f"{mastered} / 200")
+# --- SIDEBAR (Scouting Report) ---
+st.sidebar.header("📋 Manager's Office")
 
-if st.sidebar.button("🗑️ Reset Progress"):
+# 1. Mastery Stats
+mastered = sum(1 for w in st.session_state.vocab_data if w["score"] >= MASTERY_THRESHOLD)
+st.sidebar.metric("Words Mastered", f"{mastered} / 200")
+
+# 2. Scouting Report (Weaker Words)
+st.sidebar.subheader("📉 Scouting Report")
+df = pd.DataFrame(st.session_state.vocab_data)
+
+if not df.empty:
+    # Filter only words that have at least one miss
+    weak_words = df[df['misses'] > 0].sort_values(by='misses', ascending=False).head(10)
+    
+    if not weak_words.empty:
+        st.sidebar.write("Words to work on:")
+        st.sidebar.dataframe(weak_words[["word", "misses", "score"]], hide_index=True)
+    else:
+        st.sidebar.write("No misses yet! Keep up the perfect game! ⚾")
+
+# 3. Full List (Optional)
+with st.sidebar.expander("Full Roster Progress"):
+    st.sidebar.dataframe(df[["word", "score", "misses"]].sort_values("score", ascending=False), hide_index=True)
+
+if st.sidebar.button("🗑️ Reset All Progress"):
     redis_client.delete(DB_KEY)
     st.session_state.vocab_data = fresh_initial_state()
     st.rerun()
-
 # --- 主畫面邏輯 ---
 if st.session_state.show_results:
     st.header("📊 Results")
