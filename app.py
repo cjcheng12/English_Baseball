@@ -1,4 +1,4 @@
-import streamlit as st
+  import streamlit as st
 import random
 import json
 import time
@@ -7,6 +7,7 @@ import io
 import copy
 import pandas as pd
 import re
+from upstash_redis import Redis
 
 # =========================
 # CONFIGURATION
@@ -14,10 +15,31 @@ import re
 ROUNDS_PER_GAME = 20
 MASTERY_THRESHOLD = 5
 COOLDOWN_SECONDS = 86400  # 24 hours
+DB_KEY = "baseball_200_v1" # 雲端資料庫的鍵名
+
+# =========================
+# 1. DATABASE CONNECTION (Upstash)
+# =========================
+@st.cache_resource
+def get_redis():
+    """初始化雲端資料庫連線"""
+    return Redis(
+        url=st.secrets["UPSTASH_REDIS_REST_URL"],
+        token=st.secrets["UPSTASH_REDIS_REST_TOKEN"]
+    )
+
+redis_client = get_redis()
+
+def sync_to_cloud():
+    """將當前進度即時寫入雲端"""
+    try:
+        # 使用 json.dumps 確保格式正確地存入 Redis
+        redis_client.set(DB_KEY, json.dumps(st.session_state.vocab_data))
+    except Exception as e:
+        st.sidebar.error(f"雲端備份失敗: {e}")
 
 # =========================
 # FULL 200-WORD VOCAB LIST
-# Each item: word / def / ex  (ex uses ___ blank for clean replacement)
 # =========================
 initial_word_data = [
     # --- 1-50: Baseball terms / nouns ---
@@ -57,7 +79,7 @@ initial_word_data = [
     {"word": "Steal", "def": "盜壘", "ex": "He tried to ___ second base."},
     {"word": "Bunt", "def": "觸擊", "ex": "He laid down a perfect ___."},
 
-    # --- 51-100: Advanced adjectives (50) ---
+    # --- 51-100: Advanced adjectives ---
     {"word": "Phenomenal", "def": "非凡的", "ex": "His performance was ___ tonight."},
     {"word": "Legendary", "def": "傳奇的", "ex": "That was a ___ moment in baseball history."},
     {"word": "Dominant", "def": "佔優勢的", "ex": "The pitcher was ___ from start to finish."},
@@ -108,7 +130,7 @@ initial_word_data = [
     {"word": "Luminous", "def": "明亮的", "ex": "The lights were ___ in the night sky."},
     {"word": "Eloquent", "def": "有說服力的", "ex": "He gave an ___ speech."},
 
-    # --- 101-150: Verbs (50) ---
+    # --- 101-150: Verbs ---
     {"word": "Sprint", "def": "衝刺", "ex": "You must ___ to beat the throw."},
     {"word": "Launch", "def": "大力擊出", "ex": "He ___ the ball into the stands."},
     {"word": "Celebrate", "def": "慶祝", "ex": "They ___ after the walk-off win."},
@@ -158,7 +180,7 @@ initial_word_data = [
     {"word": "Emulate", "def": "效法", "ex": "Kids ___ their favorite stars."},
     {"word": "Augment", "def": "加強", "ex": "He tried to ___ his arm strength."},
 
-    # --- 151-200: Concepts / abstract nouns + extra baseball concepts (50) ---
+    # --- 151-200: Concepts ---
     {"word": "Opportunity", "def": "機會", "ex": "Every at-bat is an ___."},
     {"word": "Strategy", "def": "策略", "ex": "The manager changed the ___."},
     {"word": "Technique", "def": "技巧", "ex": "Good ___ prevents injuries."},
@@ -199,7 +221,6 @@ initial_word_data = [
     {"word": "Achievement", "def": "成就", "ex": "A title is a major ___."},
     {"word": "Motivation", "def": "動機", "ex": "His ___ is to improve."},
     {"word": "Commitment", "def": "承諾", "ex": "Baseball takes real ___."},
-    # extra baseball concepts to reach 200
     {"word": "Clutch", "def": "關鍵時刻的表現", "ex": "He is known for his ___ hitting."},
     {"word": "Chemistry", "def": "默契", "ex": "Team ___ matters a lot."},
     {"word": "Discipline", "def": "自律", "ex": "Plate ___ leads to walks."},
@@ -213,7 +234,7 @@ initial_word_data = [
 ]
 
 # =========================
-# Helpers: Progress merge + type safety
+# Helpers
 # =========================
 def fresh_initial_state():
     data = copy.deepcopy(initial_word_data)
@@ -221,96 +242,43 @@ def fresh_initial_state():
         item.setdefault("score", 0)
         item.setdefault("last_correct_time", None)
         item.setdefault("misses", 0)
-        item.setdefault("ex", "")
-
-        # normalize types
-        try:
-            item["score"] = int(item["score"])
-        except Exception:
-            item["score"] = 0
-
-        try:
-            item["misses"] = int(item["misses"])
-        except Exception:
-            item["misses"] = 0
-
-        lct = item.get("last_correct_time")
-        if lct is None:
-            item["last_correct_time"] = None
-        else:
-            try:
-                item["last_correct_time"] = float(lct)
-            except Exception:
-                item["last_correct_time"] = None
-
     return data
 
-
 def merge_progress(loaded):
-    """
-    Merge uploaded progress into canonical list by 'word'.
-    Keeps def/ex from initial list, merges score/last_correct_time/misses.
-    """
     base = fresh_initial_state()
-    if not isinstance(loaded, list):
-        return base
-
+    if not isinstance(loaded, list): return base
     idx = {w.get("word"): w for w in loaded if isinstance(w, dict) and w.get("word")}
     for item in base:
         src = idx.get(item["word"])
-        if not src:
-            continue
-
-        if "score" in src:
-            try:
-                item["score"] = int(src.get("score", item["score"]))
-            except Exception:
-                pass
-
-        if "misses" in src:
-            try:
-                item["misses"] = int(src.get("misses", item["misses"]))
-            except Exception:
-                pass
-
-        if "last_correct_time" in src:
-            lct = src.get("last_correct_time")
-            if lct is None:
-                item["last_correct_time"] = None
-            else:
-                try:
-                    item["last_correct_time"] = float(lct)
-                except Exception:
-                    item["last_correct_time"] = None
-
+        if not src: continue
+        item["score"] = int(src.get("score", 0))
+        item["misses"] = int(src.get("misses", 0))
+        lct = src.get("last_correct_time")
+        item["last_correct_time"] = float(lct) if lct else None
     return base
 
+# =========================
+# Session State Initialization
+# =========================
+if "vocab_data" not in st.session_state:
+    raw_cloud = redis_client.get(DB_KEY)
+    if raw_cloud:
+        # 雲端有資料，解析並載入
+        st.session_state.vocab_data = merge_progress(raw_cloud if isinstance(raw_cloud, list) else json.loads(raw_cloud))
+    else:
+        st.session_state.vocab_data = fresh_initial_state()
 
-# =========================
-# Session State
-# =========================
 DEFAULTS = {
-    "current_index": 0,
-    "game_score": 0,
-    "game_active": False,  # False | True | "WON"
-    "current_question": None,
-    "options": [],
-    "feedback": "",
-    "word_audio": None,
-    "sentence_audio": None,
-    "session_words": [],
+    "current_index": 0, "game_score": 0, "game_active": False,
+    "current_question": None, "options": [], "feedback": "",
+    "word_audio": None, "sentence_audio": None, "session_words": [],
     "show_results": False,
 }
-
 for k, v in DEFAULTS.items():
-    if k not in st.session_state:
-        st.session_state[k] = copy.deepcopy(v)
-
-if "vocab_data" not in st.session_state:
-    st.session_state.vocab_data = fresh_initial_state()
+    if k not in st.session_state: st.session_state[k] = v
 
 # =========================
-# Audio (cached)
+# Audio & Rendering
 # =========================
 @st.cache_data(show_spinner=False)
 def tts_mp3_bytes(txt: str) -> bytes:
@@ -319,267 +287,155 @@ def tts_mp3_bytes(txt: str) -> bytes:
         f = io.BytesIO()
         tts.write_to_fp(f)
         return f.getvalue()
-    except Exception:
-        return b""
+    except: return b""
 
-def get_audio_stream(txt: str):
-    b = tts_mp3_bytes(txt)
-    return io.BytesIO(b) if b else None
-import re  # 若你前面還沒 import
-
-def sentence_for_tts(ex: str, word: str) -> str:
-    ex = (ex or "").strip()
-    word = (word or "").strip()
-    if not ex:
-        return word
-
-    # 把 ___ 換成真正的單字，避免 TTS 念 underscore
-    if "___" in ex:
-        ex = ex.replace("___", word)
-
-    # 保險：移除任何殘留底線
-    ex = re.sub(r"_+", " ", ex)
-
-    return ex
-
-
-# =========================
-# Sentence highlight (28px)
-# =========================
 def render_sentence_box(word: str, sentence: str):
-    if not sentence:
-        sentence = ""
-
-    # Prefer blank replacement (best for accuracy, including multi-word phrases)
-    if "___" in sentence:
-        shown = sentence.replace(
-            "___",
-            f"<span style='color:#e63946; font-weight:900; text-decoration:underline; text-underline-offset:4px;'>{word}</span>",
-        )
-    else:
-        # Fallback: regex highlight occurrences (case-insensitive)
-        escaped = re.escape(word.strip())
-        if " " in word.strip():
-            pattern = re.compile(escaped, re.IGNORECASE)
-        else:
-            pattern = re.compile(rf"\b{escaped}\b", re.IGNORECASE)
-
-        def repl(m):
-            return (
-                "<span style='color:#e63946; font-weight:900; text-decoration:underline; text-underline-offset:4px;'>"
-                f"{m.group(0)}</span>"
-            )
-
-        shown = pattern.sub(repl, sentence)
-
-    st.markdown(
-        f"""
-        <div style="
-            font-size: 28px;
-            line-height: 1.5;
-            padding: 20px;
-            background: #f0f2f6;
-            border-radius: 10px;
-            border-left: 6px solid #1f77b4;
-            margin-top: 8px;
-            margin-bottom: 14px;
-        ">
-            💡 {shown}
-        </div>
-        """,
-        unsafe_allow_html=True,
-    )
+    shown = sentence.replace("___", f"<span style='color:#e63946; font-weight:900; text-decoration:underline;'>{word}</span>")
+    st.markdown(f'<div style="font-size: 28px; padding: 20px; background: #f0f2f6; border-radius: 10px; border-left: 6px solid #1f77b4; margin-bottom: 14px;">💡 {shown}</div>', unsafe_allow_html=True)
 
 # =========================
-# Game Logic
+# Game Engine
 # =========================
-def start_game():
-    cands = [w for w in st.session_state.vocab_data if w["score"] < MASTERY_THRESHOLD]
-    if not cands:
-        st.session_state.game_active = "WON"
-        st.session_state.show_results = False
-        return
-
-    st.session_state.session_words = random.sample(cands, min(ROUNDS_PER_GAME, len(cands)))
-    st.session_state.current_index = 0
-    st.session_state.game_score = 0
-    st.session_state.game_active = True
-    st.session_state.show_results = False
-    st.session_state.feedback = ""
-    next_q()
-
 def next_q():
     if st.session_state.current_index < len(st.session_state.session_words):
         t = st.session_state.session_words[st.session_state.current_index]
         st.session_state.current_question = t
-        st.session_state.word_audio = get_audio_stream(t["word"])
-        st.session_state.sentence_audio = get_audio_stream(
-    sentence_for_tts(t.get("ex", ""), t.get("word", ""))
-)
-
-
+        st.session_state.word_audio = tts_mp3_bytes(t["word"])
+        st.session_state.sentence_audio = tts_mp3_bytes(t["ex"].replace("___", t["word"]))
         pool = [w["def"] for w in st.session_state.vocab_data if w["def"] != t["def"]]
-        pool = list(dict.fromkeys(pool))  # de-dup
-
-        k = min(3, len(pool))
-        opts = [t["def"]] + (random.sample(pool, k) if k > 0 else [])
+        opts = [t["def"]] + random.sample(list(set(pool)), 3)
         random.shuffle(opts)
         st.session_state.options = opts
     else:
         st.session_state.game_active = False
         st.session_state.show_results = True
-        st.session_state.current_question = None
-        st.session_state.options = []
-        st.session_state.word_audio = None
-        st.session_state.sentence_audio = None
 
 def check(ans: str):
     t, now = st.session_state.current_question, time.time()
-    if not t:
-        return
-
     if ans == t["def"]:
         st.session_state.game_score += 1
-
         for i in st.session_state.vocab_data:
             if i["word"] == t["word"]:
                 last = i.get("last_correct_time")
-
-                # ✅ 24h cooldown logic (your requirement)
                 if last is None or (now - last > COOLDOWN_SECONDS):
                     i["score"] += 1
                     i["last_correct_time"] = now
-                    st.session_state.feedback = f"✅ Correct! (+1 Mastery Point)  {t['word']} = {t['def']}"
+                    st.session_state.feedback = f"✅ Correct! (+1 Mastery) {t['word']} = {t['def']}"
                 else:
-                    remaining = max(0, COOLDOWN_SECONDS - (now - last))
-                    h = int(remaining // 3600)
-                    m = int((remaining % 3600) // 60)
-                    st.session_state.feedback = f"✅ Correct! (Next mastery point in {h}h {m}m)  {t['word']} = {t['def']}"
-
+                    st.session_state.feedback = f"✅ Correct! (Cooldown active) {t['word']} = {t['def']}"
                 break
     else:
-        st.session_state.feedback = f"❌ Wrong. {t['word']} = {t['def']} (-1 Mastery)"
+        st.session_state.feedback = f"❌ Wrong. {t['word']} = {t['def']}"
         for i in st.session_state.vocab_data:
             if i["word"] == t["word"]:
                 i["score"] = max(0, i["score"] - 1)
-                i["misses"] = int(i.get("misses", 0)) + 1
+                i["misses"] += 1
                 break
-
+    
+    # 每題結束自動同步雲端
+    sync_to_cloud()
     st.session_state.current_index += 1
     next_q()
 
 # =========================
-# UI
+# UI Main
 # =========================
-st.set_page_config(page_title="Baseball Superstars Trainer", page_icon="⚾")
-st.title("⚾ Pro English & Baseball Trainer (200 Words)")
+st.set_page_config(page_title="Baseball Superstar Trainer", page_icon="⚾")
+st.title("⚾ Pro English & Baseball Trainer")
 
-# --- Sidebar ---
+# Sidebar
 st.sidebar.header("📋 Manager's Office")
-
-up = st.sidebar.file_uploader("Upload Progress (.json)", type="json")
-if up:
-    try:
-        loaded = json.load(up)
-        st.session_state.vocab_data = merge_progress(loaded)
-        st.sidebar.success("Loaded!")
-    except Exception:
-        st.sidebar.error("Invalid file.")
-
 mastered = sum(1 for w in st.session_state.vocab_data if w["score"] >= MASTERY_THRESHOLD)
-st.sidebar.metric("Roster Mastered", f"{mastered} / {len(st.session_state.vocab_data)}")
+remaining = len(st.session_state.vocab_data) - mastered
+st.sidebar.metric("Mastered", f"{mastered} / 200")
+st.sidebar.metric("Remaining", remaining)
 
-with st.sidebar.expander("🔍 Scouting Report", expanded=False):
-    df = pd.DataFrame(st.session_state.vocab_data)
+# 顯示熟練度清單
+with st.sidebar.expander("📈 Roster Mastery Levels"):
+    df_show = pd.DataFrame(st.session_state.vocab_data)[["word", "score", "misses"]]
+    st.dataframe(df_show.sort_values("score", ascending=False), hide_index=True)
 
-    # Slumping: most misses
-    if not df.empty and "misses" in df.columns:
-        slump = df[df["misses"] > 0].sort_values("misses", ascending=False).head(5)
-        if not slump.empty:
-            st.subheader("📉 Slumping Words")
-            for _, row in slump.iterrows():
-                st.write(f"**{row['word']}**: {int(row['misses'])} errors")
+if st.sidebar.button("🗑️ Reset All Progress (Cloud)"):
+    redis_client.delete(DB_KEY)
+    st.session_state.vocab_data = fresh_initial_state()
+    st.rerun()
 
-    # Rising: close to mastery
-    if not df.empty and "score" in df.columns:
-        rising = df[(df["score"] > 0) & (df["score"] < MASTERY_THRESHOLD)].sort_values("score", ascending=False).head(5)
-        if not rising.empty:
-            st.subheader("⭐ Rising Stars")
-            for _, row in rising.iterrows():
-                st.write(f"**{row['word']}**: Level {int(row['score'])}")
-
-st.sidebar.download_button(
-    "💾 Save Progress",
-    data=json.dumps(st.session_state.vocab_data, indent=4, ensure_ascii=False),
-    file_name="progress.json",
-)
-
-# --- Main screens ---
-if st.session_state.game_active == "WON":
-    st.balloons()
-    st.success("🏆 MVP! All words mastered!")
-    if st.button("Restart Season"):
-        st.session_state.vocab_data = fresh_initial_state()
-        for k, v in DEFAULTS.items():
-            st.session_state[k] = copy.deepcopy(v)
-        st.rerun()
-
-elif st.session_state.show_results:
+# Main Screen
+if st.session_state.show_results:
     st.header("📊 Post-Game Analysis")
-    score = st.session_state.game_score
-    total = len(st.session_state.session_words)
-    st.metric("Final Score", f"{score} / {total}")
-
+    st.metric("Score", f"{st.session_state.game_score} / {len(st.session_state.session_words)}")
     if st.button("Back to Clubhouse"):
         st.session_state.show_results = False
         st.rerun()
 
 elif not st.session_state.game_active:
     st.header("Welcome to the Stadium")
-    st.caption("Rule: Correct answers may only grant +1 mastery point once every 24 hours per word.")
     if st.button("▶️ Play Ball (20 Rounds)", use_container_width=True):
-        start_game()
-        st.rerun()
-
-    # Optional overview table (only show if some progress exists)
-    df = pd.DataFrame(st.session_state.vocab_data)
-    if not df.empty and df["score"].sum() > 0:
-        st.subheader("Current Training Stats (Top 15)")
-        st.table(
-            df[df["score"] > 0]
-            .sort_values(["score", "misses"], ascending=[False, False])
-            .head(15)[["word", "def", "score", "misses"]]
-        )
-
+        cands = [w for w in st.session_state.vocab_data if w["score"] < MASTERY_THRESHOLD]
+        if not cands: st.success("🏆 MVP! All words mastered!")
+        else:
+            st.session_state.session_words = random.sample(cands, min(ROUNDS_PER_GAME, len(cands)))
+            st.session_state.current_index = 0
+            st.session_state.game_score = 0
+            st.session_state.game_active = True
+            next_q()
+            st.rerun()
 else:
     q = st.session_state.current_question
-    total = max(1, len(st.session_state.session_words))
-    st.progress(st.session_state.current_index / total)
-
-    st.markdown(f"## Word: **{q['word']}**")
-
+    st.progress(st.session_state.current_index / len(st.session_state.session_words))
+    st.markdown(f"## Word: **{q['word']}** (Level {q['score']})")
+    
     c1, c2 = st.columns(2)
-    with c1:
-        st.write("🔊 **Word**")
-        if st.session_state.word_audio:
-            st.audio(st.session_state.word_audio)
-    with c2:
-        st.write("📖 **Sentence**")
-        if st.session_state.sentence_audio:
-            st.audio(st.session_state.sentence_audio)
-
-    # 28px sentence + highlighted correct word
-    render_sentence_box(q["word"], q.get("ex", ""))
-
-    # Options
+    with c1: st.audio(st.session_state.word_audio, format="audio/mp3") if st.session_state.word_audio else None
+    with c2: st.audio(st.session_state.sentence_audio, format="audio/mp3") if st.session_state.sentence_audio else None
+    
+    render_sentence_box(q["word"], q["ex"])
+    
     cols = st.columns(2)
     for i, opt in enumerate(st.session_state.options):
-        if cols[i % 2].button(opt, use_container_width=True, key=f"q_{st.session_state.current_index}_{i}"):
+        if cols[i % 2].button(opt, use_container_width=True, key=f"btn_{i}"):
             check(opt)
             st.rerun()
 
     if st.session_state.feedback:
-        if "✅" in st.session_state.feedback:
-            st.success(st.session_state.feedback)
-        else:
-            st.error(st.session_state.feedback)
+        if "✅" in st.session_state.feedback: st.success(st.session_state.feedback)
+        else: st.error(st.session_state.feedback)  
+   
+   
+  
+    
+   
+   
+ 
+  
+  
+
+         
+
+
+      
+
+
+
+
+
+
+     
+    
+     
+
+
+    
+
+                    
+     
+
+
+  
+        
+  
+
+    
+   
+      
+         
