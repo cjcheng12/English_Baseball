@@ -9,37 +9,47 @@ import pandas as pd
 from upstash_redis import Redis
 
 # =========================
-# 1. 基礎設定
+# 0. PAGE CONFIG (Must be first!)
+# =========================
+st.set_page_config(page_title="Superstar Trainer", page_icon="⚾", layout="wide")
+
+# =========================
+# 1. SETTINGS
 # =========================
 ROUNDS_PER_GAME = 20
 MASTERY_THRESHOLD = 5
-COOLDOWN_SECONDS = 86400  # 24 小時冷卻
+COOLDOWN_SECONDS = 86400  # 24 Hour cooldown
 DB_KEY = "baseball_200_v1"
 
 # =========================
-# 2. 雲端資料庫連線 (Upstash)
+# 2. CLOUD DATABASE (Upstash Redis)
 # =========================
 @st.cache_resource
 def get_redis():
-    return Redis(
-        url=st.secrets["UPSTASH_REDIS_REST_URL"],
-        token=st.secrets["UPSTASH_REDIS_REST_TOKEN"]
-    )
+    try:
+        return Redis(
+            url=st.secrets["UPSTASH_REDIS_REST_URL"],
+            token=st.secrets["UPSTASH_REDIS_REST_TOKEN"]
+        )
+    except Exception as e:
+        st.error(f"Redis Connection Error: {e}")
+        return None
 
 redis_client = get_redis()
 
 def sync_to_cloud():
-    """將進度即時寫入雲端"""
-    try:
-        redis_client.set(DB_KEY, json.dumps(st.session_state.vocab_data))
-    except Exception as e:
-        st.sidebar.error(f"雲端備份失敗: {e}")
+    """Safely write progress to the cloud."""
+    if redis_client:
+        try:
+            redis_client.set(DB_KEY, json.dumps(st.session_state.vocab_data))
+        except Exception as e:
+            st.sidebar.error(f"Cloud Backup Failed: {e}")
 
 # =========================
-# 3. 200 單字資料庫
+# 3. VOCABULARY DATABASE
 # =========================
 initial_word_data = [
-    # 棒球名詞
+    # Nouns
     {"word": "Bullpen", "def": "牛棚", "ex": "The reliever warmed up in the ___."},
     {"word": "Roster", "def": "球員名單", "ex": "The team updated its ___ today."},
     {"word": "Statistic", "def": "統計數據", "ex": "OPS is an important ___."},
@@ -75,7 +85,7 @@ initial_word_data = [
     {"word": "Changeup", "def": "變速球", "ex": "The ___ looked like a fastball at first."},
     {"word": "Steal", "def": "盜壘", "ex": "He tried to ___ second base."},
     {"word": "Bunt", "def": "觸擊", "ex": "He laid down a perfect ___."},
-    # 形容詞
+    # Adjectives
     {"word": "Phenomenal", "def": "非凡的", "ex": "His performance was ___ tonight."},
     {"word": "Legendary", "def": "傳奇的", "ex": "That was a ___ moment in baseball history."},
     {"word": "Dominant", "def": "佔優勢的", "ex": "The pitcher was ___ from start to finish."},
@@ -125,7 +135,7 @@ initial_word_data = [
     {"word": "Immaculate", "def": "完美無瑕的", "ex": "He pitched an ___ inning."},
     {"word": "Luminous", "def": "明亮的", "ex": "The lights were ___ in the night sky."},
     {"word": "Eloquent", "def": "有說服力的", "ex": "He gave an ___ speech."},
-    # 動詞
+    # Verbs
     {"word": "Sprint", "def": "衝刺", "ex": "You must ___ to beat the throw."},
     {"word": "Launch", "def": "大力擊出", "ex": "He ___ the ball into the stands."},
     {"word": "Celebrate", "def": "慶祝", "ex": "They ___ after the walk-off win."},
@@ -174,7 +184,7 @@ initial_word_data = [
     {"word": "Mitigate", "def": "減輕", "ex": "Stretching helps ___ injury risk."},
     {"word": "Emulate", "def": "效法", "ex": "Kids ___ their favorite stars."},
     {"word": "Augment", "def": "加強", "ex": "He tried to ___ his arm strength."},
-    # 抽象概念
+    # Concepts
     {"word": "Opportunity", "def": "機會", "ex": "Every at-bat is an ___."},
     {"word": "Strategy", "def": "策略", "ex": "The manager changed the ___."},
     {"word": "Technique", "def": "技巧", "ex": "Good ___ prevents injuries."},
@@ -224,11 +234,11 @@ initial_word_data = [
     {"word": "Focus", "def": "專注", "ex": "___ is required every pitch."},
     {"word": "Timing", "def": "時機／節奏", "ex": "Good ___ creates hard contact."},
     {"word": "Mechanics", "def": "動作機制", "ex": "Pitching ___ must be clean."},
-    {"word": "Stamina", "def": "體力／續航", "ex": "A starter needs ___."},
+    {"word": "Stamina", "def": "體力／續航", "ex": "A starter needs ___."}
 ]
 
 # =========================
-# 4. 功能函數
+# 4. HELPER FUNCTIONS
 # =========================
 def fresh_initial_state():
     data = copy.deepcopy(initial_word_data)
@@ -260,15 +270,22 @@ def tts_mp3_bytes(txt: str):
     except: return None
 
 def render_sentence_box(word: str, sentence: str):
-    """原創穩定版例句顯示器"""
+    """Highlights the target word in the example sentence."""
     display_text = sentence.replace("___", f"**{word.upper()}**")
     st.info(f"💡 {display_text}")
 
 # =========================
-# 5. 狀態初始化
+# 5. INITIALIZE STATE
 # =========================
+# Safely fetch from cloud to prevent httpx.ConnectError crashes
 if "vocab_data" not in st.session_state:
-    raw_cloud = redis_client.get(DB_KEY)
+    raw_cloud = None
+    if redis_client:
+        try:
+            raw_cloud = redis_client.get(DB_KEY)
+        except Exception:
+            pass # Fail gracefully if Redis is down
+    
     st.session_state.vocab_data = merge_progress(json.loads(raw_cloud)) if raw_cloud else fresh_initial_state()
 
 DEFAULTS = {
@@ -281,7 +298,7 @@ for k, v in DEFAULTS.items():
     if k not in st.session_state: st.session_state[k] = v
 
 # =========================
-# 6. 遊戲引擎
+# 6. GAME ENGINE
 # =========================
 def next_q():
     if st.session_state.current_index < len(st.session_state.session_words):
@@ -289,6 +306,7 @@ def next_q():
         st.session_state.current_question = t
         st.session_state.word_audio = tts_mp3_bytes(t["word"])
         st.session_state.sentence_audio = tts_mp3_bytes(t["ex"].replace("___", t["word"]))
+        
         pool = [w["def"] for w in st.session_state.vocab_data if w["def"] != t["def"]]
         opts = [t["def"]] + random.sample(list(set(pool)), 3)
         random.shuffle(opts)
@@ -299,6 +317,7 @@ def next_q():
 
 def check(ans: str):
     t, now = st.session_state.current_question, time.time()
+    
     if ans == t["def"]:
         st.session_state.game_score += 1
         for i in st.session_state.vocab_data:
@@ -309,96 +328,109 @@ def check(ans: str):
                     i["last_correct_time"] = now
                     st.session_state.feedback = f"✅ Correct! {t['word']} = {t['def']}"
                 else:
-                    st.session_state.feedback = f"✅ Correct! (Cooldown) {t['word']} = {t['def']}"
+                    st.session_state.feedback = f"✅ Correct! (Cooldown active) {t['word']} = {t['def']}"
+                break
     else:
         st.session_state.feedback = f"❌ Wrong. {t['word']} = {t['def']}"
         for i in st.session_state.vocab_data:
             if i["word"] == t["word"]:
                 i["score"] = max(0, i["score"] - 1)
                 i["misses"] += 1
+                break
     
+    # Sync progress safely
     sync_to_cloud()
     st.session_state.current_index += 1
     next_q()
 
 # =========================
-# 7. UI 主畫面
+# 7. MAIN UI
 # =========================
-st.set_page_config(page_title="Superstar Trainer", page_icon="⚾")
 st.title("⚾ Pro English Trainer")
 
-# --- 側邊欄 ---
 # --- SIDEBAR (Scouting Report) ---
 st.sidebar.header("📋 Manager's Office")
 
-# 1. Mastery Stats
 mastered = sum(1 for w in st.session_state.vocab_data if w["score"] >= MASTERY_THRESHOLD)
-st.sidebar.metric("Words Mastered", f"{mastered} / 200")
+total_words = len(st.session_state.vocab_data)
+st.sidebar.metric("Words Mastered", f"{mastered} / {total_words}")
 
-# 2. Scouting Report (Weaker Words)
 st.sidebar.subheader("📉 Scouting Report")
 df = pd.DataFrame(st.session_state.vocab_data)
 
 if not df.empty:
-    # Filter only words that have at least one miss
     weak_words = df[df['misses'] > 0].sort_values(by='misses', ascending=False).head(10)
-    
     if not weak_words.empty:
         st.sidebar.write("Words to work on:")
         st.sidebar.dataframe(weak_words[["word", "misses", "score"]], hide_index=True)
     else:
         st.sidebar.write("No misses yet! Keep up the perfect game! ⚾")
 
-# 3. Full List (Optional)
 with st.sidebar.expander("Full Roster Progress"):
     st.sidebar.dataframe(df[["word", "score", "misses"]].sort_values("score", ascending=False), hide_index=True)
 
 if st.sidebar.button("🗑️ Reset All Progress"):
-    redis_client.delete(DB_KEY)
+    if redis_client:
+        try:
+            redis_client.delete(DB_KEY)
+        except Exception:
+            pass
     st.session_state.vocab_data = fresh_initial_state()
     st.rerun()
-# --- 主畫面邏輯 ---
+
+# --- MAIN SCREEN LOGIC ---
 if st.session_state.show_results:
     st.header("📊 Results")
     st.metric("Score", f"{st.session_state.game_score} / {len(st.session_state.session_words)}")
-    if st.button("Back"):
+    if st.button("Back to Clubhouse"):
         st.session_state.show_results = False
         st.rerun()
 
 elif not st.session_state.game_active:
+    st.write("### Ready for Batting Practice?")
     if st.button("▶️ Start 20 Rounds", use_container_width=True):
         cands = [w for w in st.session_state.vocab_data if w["score"] < MASTERY_THRESHOLD]
-        if not cands: st.success("🏆 Finished!")
+        if not cands: 
+            st.success("🏆 All words mastered! You are ready for the big leagues.")
         else:
             st.session_state.session_words = random.sample(cands, min(ROUNDS_PER_GAME, len(cands)))
             st.session_state.current_index, st.session_state.game_score = 0, 0
             st.session_state.game_active = True
+            st.session_state.feedback = ""
             next_q()
             st.rerun()
 else:
     q = st.session_state.current_question
-    st.progress(st.session_state.current_index / len(st.session_state.session_words))
+    total_q = len(st.session_state.session_words)
+    st.progress(st.session_state.current_index / total_q)
+    
     st.markdown(f"## Word: **{q['word']}**")
     
-    # 兩欄音訊
+    # Audio Columns
     c1, c2 = st.columns(2)
     with c1:
-        st.write("🔊 Word")
-        if st.session_state.word_audio: st.audio(st.session_state.word_audio, format="audio/mp3")
+        st.write("🔊 **Word Audio**")
+        if st.session_state.word_audio: 
+            st.audio(st.session_state.word_audio, format="audio/mp3")
     with c2:
-        st.write("📖 Sentence Audio")
-        if st.session_state.sentence_audio: st.audio(st.session_state.sentence_audio, format="audio/mp3")
+        st.write("📖 **Sentence Audio**")
+        if st.session_state.sentence_audio: 
+            st.audio(st.session_state.sentence_audio, format="audio/mp3")
     
-    # 【關鍵】顯示例句
+    # Example Sentence
     render_sentence_box(q["word"], q["ex"])
     
-    # 選項
+    # Multiple Choice Buttons
     cols = st.columns(2)
     for i, opt in enumerate(st.session_state.options):
-        if cols[i % 2].button(opt, use_container_width=True, key=f"b_{i}"):
+        # Added dynamic keys to prevent Streamlit button overlap bugs!
+        if cols[i % 2].button(opt, use_container_width=True, key=f"ans_{st.session_state.current_index}_{i}"):
             check(opt)
             st.rerun()
 
+    # Feedback
     if st.session_state.feedback:
-        if "✅" in st.session_state.feedback: st.success(st.session_state.feedback)
-        else: st.error(st.session_state.feedback)
+        if "✅" in st.session_state.feedback: 
+            st.success(st.session_state.feedback)
+        else: 
+            st.error(st.session_state.feedback)
